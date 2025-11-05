@@ -128,7 +128,8 @@ export const showAllBills = createTool({
       const balance = actualIncome - actualOutgoing;
       
       // 构建消息 - 按照用户提供的模板格式
-      let message = `入款(฿):\n`;
+      let message = `TOM记账机器人测试\n\n`;
+      message += `入款(฿):\n`;
       
       // 显示入款记录
       if (incomeRecords.length === 0) {
