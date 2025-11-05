@@ -6,7 +6,8 @@ import {
   addOutgoingRecord,
   deleteAllRecords,
 } from "../tools/transactionTools";
-import { showAllBills } from "../tools/queryTools";
+import { showAllBills, dailySettlement } from "../tools/queryTools";
+import { setIncomeFeeRate, setOutgoingFeeRate } from "../tools/rateTools";
 
 /**
  * Accounting Workflow for Telegram Bot
@@ -153,6 +154,83 @@ const processAccountingMessage = createStep({
         };
       }
       
+      // 匹配 日结算
+      if (msg === "日结算" || msg === "今日结算") {
+        logger?.info("✅ [FastMatch] 匹配到日结算命令");
+        
+        const settlementResult = await dailySettlement.execute({
+          context: { groupId },
+          runtimeContext,
+        });
+        
+        return {
+          response: settlementResult.message,
+          success: settlementResult.success,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
+      // 匹配 入款费率X
+      const incomeFeeMatch = msg.match(/^入款费率\s*(-?\d+(?:\.\d+)?)$/);
+      if (incomeFeeMatch) {
+        const rate = parseFloat(incomeFeeMatch[1]);
+        
+        // 验证费率范围
+        if (rate < -100 || rate > 100) {
+          return {
+            response: "❌ 费率必须在 -100% 到 100% 之间",
+            success: false,
+            userName: inputData.userName,
+            chatId: inputData.chatId,
+          };
+        }
+        
+        logger?.info("✅ [FastMatch] 匹配到入款费率设置命令", { rate });
+        
+        const result = await setIncomeFeeRate.execute({
+          context: { groupId, rate },
+          runtimeContext,
+        });
+        
+        return {
+          response: result.message,
+          success: result.success,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
+      // 匹配 下发费率X
+      const outgoingFeeMatch = msg.match(/^下发费率\s*(-?\d+(?:\.\d+)?)$/);
+      if (outgoingFeeMatch) {
+        const rate = parseFloat(outgoingFeeMatch[1]);
+        
+        // 验证费率范围
+        if (rate < -100 || rate > 100) {
+          return {
+            response: "❌ 费率必须在 -100% 到 100% 之间",
+            success: false,
+            userName: inputData.userName,
+            chatId: inputData.chatId,
+          };
+        }
+        
+        logger?.info("✅ [FastMatch] 匹配到下发费率设置命令", { rate });
+        
+        const result = await setOutgoingFeeRate.execute({
+          context: { groupId, rate },
+          runtimeContext,
+        });
+        
+        return {
+          response: result.message,
+          success: result.success,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
       // 匹配 删除所有账单
       if (msg.includes("删除") && msg.includes("账单")) {
         logger?.info("✅ [FastMatch] 匹配到删除命令");
@@ -173,7 +251,7 @@ const processAccountingMessage = createStep({
       // 未匹配到命令
       logger?.info("❓ [FastMatch] 未识别的命令");
       return {
-        response: "命令格式：\n+数字 (入款)\n-数字 (出款)\n总账 (查询)\n结算 (完整账单)\n删除所有账单",
+        response: "命令格式：\n+数字 (入款)\n-数字 (出款)\n总账 (查询)\n日结算 (今日结算)\n入款费率X (设置入款费率)\n下发费率X (设置下发费率)\n删除所有账单",
         success: false,
         userName: inputData.userName,
         chatId: inputData.chatId,

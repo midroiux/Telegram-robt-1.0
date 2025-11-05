@@ -562,7 +562,6 @@ export const dailySettlement = createTool({
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
-    chatId: z.number().describe("Telegram chat ID"),
   }),
   
   outputSchema: z.object({

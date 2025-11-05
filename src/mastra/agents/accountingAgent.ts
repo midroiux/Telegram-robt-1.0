@@ -9,6 +9,10 @@ import {
   showAllBills,
   dailySettlement,
 } from "../tools/queryTools";
+import {
+  setIncomeFeeRate,
+  setOutgoingFeeRate,
+} from "../tools/rateTools";
 
 const openai = createOpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -32,6 +36,8 @@ export const accountingAgent = new Agent({
 总账 → 调用showAllBills(showAll=false)
 日结算 → 调用dailySettlement 执行今日结算并标记账单
 删除所有账单 → 调用deleteAllRecords
+入款费率X → 调用setIncomeFeeRate设置入款费率为X%
+下发费率X → 调用setOutgoingFeeRate设置下发费率为X%
 
 **规则:**
 1. 默认币种THB，有$符号用USD
@@ -43,6 +49,8 @@ export const accountingAgent = new Agent({
 -500 → addOutgoingRecord(500,THB) + showAllBills(showAll=false)
 总账 → showAllBills(showAll=false)
 日结算 → dailySettlement
+入款费率6 → setIncomeFeeRate(6)
+下发费率0 → setOutgoingFeeRate(0)
 `,
 
   model: openai("gpt-4o-mini"),
@@ -53,5 +61,7 @@ export const accountingAgent = new Agent({
     deleteAllRecords,
     showAllBills,
     dailySettlement,
+    setIncomeFeeRate,
+    setOutgoingFeeRate,
   },
 });

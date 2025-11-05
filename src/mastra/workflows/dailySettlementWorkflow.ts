@@ -27,7 +27,6 @@ export const dailySettlementCron = inngest.createFunction(
         const result = await dailySettlement.execute({
           context: {
             groupId,
-            chatId,
           },
           runtimeContext,
         });
