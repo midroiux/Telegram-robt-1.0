@@ -103,14 +103,14 @@ export const accountingBotTrigger = registerTelegramTrigger({
         status: result.status,
       });
 
-      // 发送响应回 Telegram
+      // 发送响应回 Telegram（fire-and-forget，不等待）
       if (result.status === "success") {
         const output = result.result;
         if (output?.message && triggerInfo.params.chatId) {
-          await sendTelegramMessage(
+          sendTelegramMessage(
             triggerInfo.params.chatId,
             output.message
-          );
+          ).catch(err => logger?.error("发送消息失败", err));
         }
       } else {
         logger?.error("❌ [AccountingBot] Workflow 失败", {
@@ -118,10 +118,10 @@ export const accountingBotTrigger = registerTelegramTrigger({
         });
         
         if (triggerInfo.params.chatId) {
-          await sendTelegramMessage(
+          sendTelegramMessage(
             triggerInfo.params.chatId,
             "抱歉,处理您的请求时出现问题。"
-          );
+          ).catch(err => logger?.error("发送消息失败", err));
         }
       }
     } catch (error: any) {
@@ -129,12 +129,12 @@ export const accountingBotTrigger = registerTelegramTrigger({
         error: error.message,
       });
 
-      // 发送错误消息给用户
+      // 发送错误消息给用户（fire-and-forget）
       if (triggerInfo.params.chatId) {
-        await sendTelegramMessage(
+        sendTelegramMessage(
           triggerInfo.params.chatId,
           `抱歉,处理您的请求时出现错误。请稍后再试。`
-        );
+        ).catch(err => logger?.error("发送消息失败", err));
       }
     }
   },
