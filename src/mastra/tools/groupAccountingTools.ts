@@ -75,11 +75,11 @@ export const addOperator = createTool({
  */
 export const removeOperator = createTool({
   id: "remove-operator",
-  description: "从群组删除操作人,格式: 删除操作人 @张三",
+  description: "从群组删除操作人，使用用户ID精确匹配",
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
-    username: z.string().describe("用户名,如 @张三"),
+    userId: z.string().describe("用户ID（数字ID更可靠）"),
   }),
   
   outputSchema: z.object({
@@ -107,11 +107,13 @@ export const removeOperator = createTool({
       
       const rows = response.data.values || [];
       let foundIndex = -1;
+      let foundUsername = "";
       
-      // 查找要删除的操作人
+      // 使用用户ID查找（第2列：B列），更可靠
       for (let i = 1; i < rows.length; i++) {
-        if (rows[i][0] === context.groupId && rows[i][2] === context.username && rows[i][4] === "正常") {
+        if (rows[i][0] === context.groupId && rows[i][1] === context.userId && rows[i][4] === "正常") {
           foundIndex = i;
+          foundUsername = rows[i][2] || "未知用户";
           break;
         }
       }
@@ -119,25 +121,28 @@ export const removeOperator = createTool({
       if (foundIndex === -1) {
         return {
           success: false,
-          message: `❌ 未找到操作人: ${context.username}`,
+          message: `❌ 未找到该用户的操作人权限\n用户ID: ${context.userId}`,
         };
       }
       
       // 标记为已删除
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `操作人!E${foundIndex + 1}`,
+        range: `Operators!E${foundIndex + 1}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [["已删除"]],
         },
       });
       
-      logger?.info("✅ [RemoveOperator] 操作人删除成功");
+      logger?.info("✅ [RemoveOperator] 操作人删除成功", {
+        userId: context.userId,
+        username: foundUsername,
+      });
       
       return {
         success: true,
-        message: `✅ 已删除操作人: ${context.username}`,
+        message: `✅ 已移除操作人权限\n用户: ${foundUsername}`,
       };
     } catch (error: any) {
       logger?.error("❌ [RemoveOperator] 删除操作人失败", error);

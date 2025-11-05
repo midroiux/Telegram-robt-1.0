@@ -169,14 +169,14 @@ const processAccountingMessage = createStep({
           };
         }
         
-        let targetUserName: string | null = null;
+        let targetUserId: string | null = null;
         
-        // 从回复消息获取
+        // 从回复消息获取用户ID（更可靠）
         if (inputData.replyToMessage) {
-          targetUserName = inputData.replyToMessage.from.username || inputData.replyToMessage.from.first_name;
+          targetUserId = inputData.replyToMessage.from.id.toString();
         }
         
-        if (!targetUserName) {
+        if (!targetUserId) {
           return {
             response: "❌ 移除权限失败\n\n请回复某人的消息，然后发送「移除权限」",
             success: false,
@@ -189,7 +189,7 @@ const processAccountingMessage = createStep({
         const result = await removeOperatorTool.removeOperator.execute({
           context: {
             groupId,
-            username: targetUserName,
+            userId: targetUserId,
           },
           runtimeContext,
         });
@@ -566,6 +566,14 @@ export const accountingWorkflow = createWorkflow({
     message: z.string(),
     userId: z.string(),
     chatId: z.number(),
+    entities: z.array(z.any()).optional(),
+    replyToMessage: z.object({
+      from: z.object({
+        id: z.number(),
+        username: z.string().optional(),
+        first_name: z.string(),
+      }),
+    }).optional(),
   }),
   
   outputSchema: z.object({
