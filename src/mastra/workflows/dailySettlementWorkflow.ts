@@ -1,4 +1,4 @@
-import { inngest } from "../inngest";
+import { inngest } from "../inngest/client";
 import { RuntimeContext } from "@mastra/core/di";
 import { dailySettlement } from "../tools/queryTools";
 

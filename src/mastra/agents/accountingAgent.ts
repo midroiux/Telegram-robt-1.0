@@ -7,6 +7,7 @@ import {
 } from "../tools/transactionTools";
 import {
   showAllBills,
+  dailySettlement,
 } from "../tools/queryTools";
 
 const openai = createOpenAI({
@@ -29,7 +30,7 @@ export const accountingAgent = new Agent({
 +数字 → 入款, 调用addIncomeRecord然后showAllBills(showAll=false)
 -数字 → 出款, 调用addOutgoingRecord然后showAllBills(showAll=false)
 总账 → 调用showAllBills(showAll=false)
-结算 → 调用showAllBills(showAll=true) 显示所有记录
+日结算 → 调用dailySettlement 执行今日结算并标记账单
 删除所有账单 → 调用deleteAllRecords
 
 **规则:**
@@ -41,7 +42,7 @@ export const accountingAgent = new Agent({
 +1000 → addIncomeRecord(1000,THB) + showAllBills(showAll=false)
 -500 → addOutgoingRecord(500,THB) + showAllBills(showAll=false)
 总账 → showAllBills(showAll=false)
-结算 → showAllBills(showAll=true)
+日结算 → dailySettlement
 `,
 
   model: openai("gpt-4o-mini"),
@@ -51,5 +52,6 @@ export const accountingAgent = new Agent({
     addOutgoingRecord,
     deleteAllRecords,
     showAllBills,
+    dailySettlement,
   },
 });
