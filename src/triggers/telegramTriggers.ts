@@ -118,6 +118,8 @@ export const accountingBotTrigger = registerTelegramTrigger({
           message: triggerInfo.params.message,
           userId: triggerInfo.params.userId,
           chatId: triggerInfo.params.chatId,
+          entities: triggerInfo.params.entities,
+          replyToMessage: triggerInfo.params.replyToMessage,
         },
       }).catch((error) => {
         logger?.error("❌ [AccountingBot] Workflow 启动失败", {

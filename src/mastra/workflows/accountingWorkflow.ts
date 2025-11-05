@@ -71,11 +71,29 @@ const processAccountingMessage = createStep({
         };
       }
       
-      // 🔑 权限管理命令 (无需权限检查，但需要验证是否是管理员)
+      // 🔑 权限管理命令 (需要验证管理员身份)
+      // 管理员ID列表 - 只有这些用户可以管理权限
+      const ADMIN_USER_IDS = ["7894748551"]; // 您的Telegram用户ID
+      
       // 方式1: 回复某人消息 + "添加权限"
       // 方式2: @某人 + "添加权限" (仅text_mention有效)
       if (msg.includes("添加权限") || msg.includes("添加操作人")) {
         logger?.info("🔑 [Permission] 检测到添加权限命令");
+        
+        // 🔒 验证管理员身份
+        if (!ADMIN_USER_IDS.includes(inputData.userId)) {
+          logger?.info("❌ [Permission] 非管理员尝试添加权限", {
+            userId: inputData.userId,
+            userName: inputData.userName,
+          });
+          
+          return {
+            response: "❌ 权限不足\n\n只有群组管理员可以添加操作人权限",
+            success: false,
+            userName: inputData.userName,
+            chatId: inputData.chatId,
+          };
+        }
         
         let targetUserId: string | null = null;
         let targetUserName: string | null = null;
@@ -136,6 +154,21 @@ const processAccountingMessage = createStep({
       if (msg.includes("移除权限") || msg.includes("删除操作人")) {
         logger?.info("🔑 [Permission] 检测到移除权限命令");
         
+        // 🔒 验证管理员身份
+        if (!ADMIN_USER_IDS.includes(inputData.userId)) {
+          logger?.info("❌ [Permission] 非管理员尝试移除权限", {
+            userId: inputData.userId,
+            userName: inputData.userName,
+          });
+          
+          return {
+            response: "❌ 权限不足\n\n只有群组管理员可以移除操作人权限",
+            success: false,
+            userName: inputData.userName,
+            chatId: inputData.chatId,
+          };
+        }
+        
         let targetUserName: string | null = null;
         
         // 从回复消息获取
@@ -169,7 +202,7 @@ const processAccountingMessage = createStep({
         };
       }
       
-      // 查看操作人列表
+      // 查看操作人列表 (无需管理员权限，任何人都可以查看)
       if (msg === "操作人列表" || msg === "查看操作人") {
         logger?.info("🔑 [Permission] 检测到查看操作人命令");
         
