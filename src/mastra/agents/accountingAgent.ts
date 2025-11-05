@@ -16,7 +16,8 @@ import {
 } from "../tools/transactionTools";
 import {
   setExchangeRate,
-  setFeeRate,
+  setIncomeFeeRate,
+  setOutgoingFeeRate,
   convertTHBtoUSD,
   getGroupSettings,
   showCurrentRates,
@@ -85,13 +86,14 @@ export const accountingAgent = new Agent({
 ### 4. 汇率与费率管理
 **命令格式:**
 - \`设置汇率35\` 或 \`汇率35\` = 设置 THB/USD 汇率为35
-- \`设置费率5\` 或 \`费率5\` = 设置手续费率为5%
+- \`设置入款费率25\` 或 \`入款费率25\` = 设置入款手续费率为25%
+- \`设置下发费率5\` 或 \`下发费率5\` = 设置下发手续费率为5%
 - \`z100\` = 将100泰铢转换为美元
 - \`z0\` 或 \`查看汇率\` = 查看当前汇率和费率
 
 **操作流程:**
 1. 提取数字部分
-2. 使用对应工具 (setExchangeRate, setFeeRate, convertTHBtoUSD, showCurrentRates)
+2. 使用对应工具 (setExchangeRate, setIncomeFeeRate, setOutgoingFeeRate, convertTHBtoUSD, showCurrentRates)
 3. 回复设置结果或转换结果
 
 ### 5. 账单查询
@@ -178,6 +180,16 @@ export const accountingAgent = new Agent({
 **工具:** setExchangeRate(rate: 35)
 **回复:** "✅ 汇率已更新为: 35"
 
+**用户输入:** "设置入款费率25"
+**解析:** 入款费率=25
+**工具:** setIncomeFeeRate(rate: 25)
+**回复:** "✅ 已设置入款费率: 25%"
+
+**用户输入:** "设置下发费率5"
+**解析:** 下发费率=5
+**工具:** setOutgoingFeeRate(rate: 5)
+**回复:** "✅ 已设置下发费率: 5%"
+
 **用户输入:** "总账"
 **工具:** showAllBills()
 **回复:** 返回详细的账单汇总
@@ -205,7 +217,8 @@ export const accountingAgent = new Agent({
     revokeLastOutgoing,
     // 汇率费率和日切
     setExchangeRate,
-    setFeeRate,
+    setIncomeFeeRate,
+    setOutgoingFeeRate,
     convertTHBtoUSD,
     getGroupSettings,
     showCurrentRates,

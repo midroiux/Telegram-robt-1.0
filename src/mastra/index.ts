@@ -31,7 +31,8 @@ import {
 // 汇率费率工具
 import {
   setExchangeRate,
-  setFeeRate,
+  setIncomeFeeRate,
+  setOutgoingFeeRate,
   convertTHBtoUSD,
   getGroupSettings,
   showCurrentRates,
@@ -115,7 +116,8 @@ export const mastra = new Mastra({
         revokeLastOutgoing,
         // 汇率费率和日切
         setExchangeRate,
-        setFeeRate,
+        setIncomeFeeRate,
+        setOutgoingFeeRate,
         convertTHBtoUSD,
         getGroupSettings,
         showCurrentRates,

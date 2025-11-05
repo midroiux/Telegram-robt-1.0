@@ -36,7 +36,7 @@ export const setExchangeRate = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:H",
+        range: "GroupSettings!A:I",
       });
       
       const rows = response.data.values || [];
@@ -52,7 +52,7 @@ export const setExchangeRate = createTool({
       if (foundIndex !== -1) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `群组设置!B${foundIndex + 1}`,
+          range: `GroupSettings!B${foundIndex + 1}`,
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[context.rate]],
@@ -62,13 +62,14 @@ export const setExchangeRate = createTool({
         // 创建新设置
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "GroupSettings!A:H",
+          range: "GroupSettings!A:I",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
               context.groupId,
               context.rate,
-              5, // 默认费率
+              5, // 默认入款费率
+              0, // 默认下发费率
               6, // 默认日切时间
               "否", // 默认不是所有人
               "否", // 默认不使用实时汇率
@@ -96,16 +97,16 @@ export const setExchangeRate = createTool({
 });
 
 /**
- * Tool: Set Fee Rate
- * 设置费率
+ * Tool: Set Income Fee Rate
+ * 设置入款费率
  */
-export const setFeeRate = createTool({
-  id: "set-fee-rate",
-  description: "设置群组的手续费率,格式: 设置费率5 或 设置费率-5",
+export const setIncomeFeeRate = createTool({
+  id: "set-income-fee-rate",
+  description: "设置群组的入款手续费率,格式: 设置入款费率25 或 入款费率25",
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
-    rate: z.number().describe("费率值,可以是正数或负数"),
+    rate: z.number().describe("入款费率值,可以是正数或负数"),
   }),
   
   outputSchema: z.object({
@@ -115,7 +116,7 @@ export const setFeeRate = createTool({
   
   execute: async ({ context, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info("🔧 [SetFeeRate] 设置费率", context);
+    logger?.info("🔧 [SetIncomeFeeRate] 设置入款费率", context);
     
     try {
       const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
@@ -127,7 +128,7 @@ export const setFeeRate = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:H",
+        range: "GroupSettings!A:I",
       });
       
       const rows = response.data.values || [];
@@ -143,7 +144,7 @@ export const setFeeRate = createTool({
       if (foundIndex !== -1) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `群组设置!C${foundIndex + 1}`,
+          range: `GroupSettings!C${foundIndex + 1}`,
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[context.rate]],
@@ -152,16 +153,17 @@ export const setFeeRate = createTool({
       } else {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "GroupSettings!A:H",
+          range: "GroupSettings!A:I",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
               context.groupId,
               35, // 默认汇率 THB/USD
-              context.rate,
-              6,
-              "否",
-              "否",
+              context.rate, // 入款费率
+              0, // 默认下发费率 0%
+              6, // 默认日切时间
+              "否", // 默认不是所有人
+              "否", // 默认不使用实时汇率
               "",
               "否",
             ]],
@@ -169,16 +171,105 @@ export const setFeeRate = createTool({
         });
       }
       
-      logger?.info("✅ [SetFeeRate] 费率设置成功");
-      
-      const rateText = context.rate > 0 ? `${context.rate}%` : `上浮${Math.abs(context.rate)}%`;
+      logger?.info("✅ [SetIncomeFeeRate] 入款费率设置成功");
       
       return {
         success: true,
-        message: `✅ 已设置费率: ${rateText}`,
+        message: `✅ 已设置入款费率: ${context.rate}%`,
       };
     } catch (error: any) {
-      logger?.error("❌ [SetFeeRate] 设置失败", error);
+      logger?.error("❌ [SetIncomeFeeRate] 设置失败", error);
+      return {
+        success: false,
+        message: `❌ 设置失败: ${error.message}`,
+      };
+    }
+  },
+});
+
+/**
+ * Tool: Set Outgoing Fee Rate
+ * 设置下发费率
+ */
+export const setOutgoingFeeRate = createTool({
+  id: "set-outgoing-fee-rate",
+  description: "设置群组的下发手续费率,格式: 设置下发费率5 或 下发费率5",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+    rate: z.number().describe("下发费率值,可以是正数或负数"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [SetOutgoingFeeRate] 设置下发费率", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = await getUncachableGoogleSheetClient();
+      
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "GroupSettings!A:I",
+      });
+      
+      const rows = response.data.values || [];
+      let foundIndex = -1;
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === context.groupId) {
+          foundIndex = i;
+          break;
+        }
+      }
+      
+      if (foundIndex !== -1) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `GroupSettings!D${foundIndex + 1}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[context.rate]],
+          },
+        });
+      } else {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: "GroupSettings!A:I",
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[
+              context.groupId,
+              35, // 默认汇率 THB/USD
+              5, // 默认入款费率 5%
+              context.rate, // 下发费率
+              6, // 默认日切时间
+              "否", // 默认不是所有人
+              "否", // 默认不使用实时汇率
+              "",
+              "否",
+            ]],
+          },
+        });
+      }
+      
+      logger?.info("✅ [SetOutgoingFeeRate] 下发费率设置成功");
+      
+      return {
+        success: true,
+        message: `✅ 已设置下发费率: ${context.rate}%`,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [SetOutgoingFeeRate] 设置失败", error);
       return {
         success: false,
         message: `❌ 设置失败: ${error.message}`,
@@ -202,7 +293,8 @@ export const getGroupSettings = createTool({
   outputSchema: z.object({
     success: z.boolean(),
     exchangeRate: z.number(),
-    feeRate: z.number(),
+    incomeFeeRate: z.number(),
+    outgoingFeeRate: z.number(),
     cutoffTime: z.number(),
     allUsersMode: z.boolean(),
     realtimeRate: z.boolean(),
@@ -223,7 +315,7 @@ export const getGroupSettings = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:H",
+        range: "GroupSettings!A:I",
       });
       
       const rows = response.data.values || [];
@@ -231,21 +323,23 @@ export const getGroupSettings = createTool({
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][0] === context.groupId) {
           const exchangeRate = parseFloat(rows[i][1] || "35");
-          const feeRate = parseFloat(rows[i][2] || "5");
-          const cutoffTime = parseInt(rows[i][3] || "6");
-          const allUsersMode = rows[i][4] === "是";
-          const realtimeRate = rows[i][5] === "是";
+          const incomeFeeRate = parseFloat(rows[i][2] || "5");
+          const outgoingFeeRate = parseFloat(rows[i][3] || "0");
+          const cutoffTime = parseInt(rows[i][4] || "6");
+          const allUsersMode = rows[i][5] === "是";
+          const realtimeRate = rows[i][6] === "是";
           
           logger?.info("✅ [GetGroupSettings] 获取成功");
           
           return {
             success: true,
             exchangeRate,
-            feeRate,
+            incomeFeeRate,
+            outgoingFeeRate,
             cutoffTime,
             allUsersMode,
             realtimeRate,
-            message: `当前设置:\n汇率: ${exchangeRate}\n费率: ${feeRate}%\n日切时间: ${cutoffTime}点`,
+            message: `当前设置:\n汇率: ${exchangeRate}\n入款费率: ${incomeFeeRate}%\n下发费率: ${outgoingFeeRate}%\n日切时间: ${cutoffTime}点`,
           };
         }
       }
@@ -254,18 +348,20 @@ export const getGroupSettings = createTool({
       return {
         success: true,
         exchangeRate: 35,
-        feeRate: 5,
+        incomeFeeRate: 5,
+        outgoingFeeRate: 0,
         cutoffTime: 6,
         allUsersMode: false,
         realtimeRate: false,
-        message: "当前使用默认设置:\n汇率: 35\n费率: 5%\n日切时间: 6点",
+        message: "当前使用默认设置:\n汇率: 35\n入款费率: 5%\n下发费率: 0%\n日切时间: 6点",
       };
     } catch (error: any) {
       logger?.error("❌ [GetGroupSettings] 获取失败", error);
       return {
         success: false,
         exchangeRate: 35,
-        feeRate: 5,
+        incomeFeeRate: 5,
+        outgoingFeeRate: 0,
         cutoffTime: 6,
         allUsersMode: false,
         realtimeRate: false,
@@ -310,7 +406,7 @@ export const convertTHBtoUSD = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:H",
+        range: "GroupSettings!A:I",
       });
       
       const rows = response.data.values || [];
@@ -560,7 +656,7 @@ export const showCurrentRates = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:H",
+        range: "GroupSettings!A:I",
       });
       
       const rows = response.data.values || [];
@@ -568,12 +664,14 @@ export const showCurrentRates = createTool({
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][0] === context.groupId) {
           const exchangeRate = parseFloat(rows[i][1] || "35");
-          const feeRate = parseFloat(rows[i][2] || "5");
-          const isRealtime = rows[i][5] === "是";
+          const incomeFeeRate = parseFloat(rows[i][2] || "5");
+          const outgoingFeeRate = parseFloat(rows[i][3] || "0");
+          const isRealtime = rows[i][6] === "是";
           
           const message = `📊 当前汇率情况:\n\n` +
             `💱 汇率: ${exchangeRate} THB/USD (฿/$)\n` +
-            `💰 费率: ${feeRate}%\n` +
+            `💰 入款费率: ${incomeFeeRate}%\n` +
+            `💸 下发费率: ${outgoingFeeRate}%\n` +
             `${isRealtime ? '🌐 实时汇率: 已启用' : '📌 固定汇率模式'}`;
           
           logger?.info("✅ [ShowCurrentRates] 显示成功");
@@ -587,7 +685,7 @@ export const showCurrentRates = createTool({
       
       return {
         success: true,
-        message: `📊 当前汇率情况:\n\n💱 汇率: 35 THB/USD (฿/$)\n💰 费率: 5%\n📌 使用默认设置`,
+        message: `📊 当前汇率情况:\n\n💱 汇率: 35 THB/USD (฿/$)\n💰 入款费率: 5%\n💸 下发费率: 0%\n📌 使用默认设置`,
       };
     } catch (error: any) {
       logger?.error("❌ [ShowCurrentRates] 显示失败", error);

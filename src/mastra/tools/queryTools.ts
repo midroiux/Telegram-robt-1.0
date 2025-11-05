@@ -39,17 +39,19 @@ export const showAllBills = createTool({
       // 获取群组设置
       const settingsResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:H",
+        range: "GroupSettings!A:I",
       });
       
       const settingsRows = settingsResponse.data.values || [];
       let exchangeRate = 35; // THB/USD 默认汇率
-      let feeRate = 5;
+      let incomeFeeRate = 5;
+      let outgoingFeeRate = 0;
       
       for (let i = 1; i < settingsRows.length; i++) {
         if (settingsRows[i][0] === context.groupId) {
           exchangeRate = parseFloat(settingsRows[i][1] || "35");
-          feeRate = parseFloat(settingsRows[i][2] || "5");
+          incomeFeeRate = parseFloat(settingsRows[i][2] || "5");
+          outgoingFeeRate = parseFloat(settingsRows[i][3] || "0");
           break;
         }
       }
@@ -120,9 +122,9 @@ export const showAllBills = createTool({
       const totalIncome = totalIncomeTHB + (totalIncomeUSD * exchangeRate);
       const totalOutgoing = totalOutgoingTHB + (totalOutgoingUSD * exchangeRate);
       
-      // 应用费率
-      const actualIncome = totalIncome * (1 - feeRate / 100);
-      const actualOutgoing = totalOutgoing * (1 + feeRate / 100);
+      // 应用费率（入款和下发使用不同的费率）
+      const actualIncome = totalIncome * (1 - incomeFeeRate / 100);
+      const actualOutgoing = totalOutgoing * (1 + outgoingFeeRate / 100);
       const netProfit = actualIncome - actualOutgoing;
       
       // 构建消息
@@ -133,7 +135,7 @@ export const showAllBills = createTool({
       message += `💸 总下发:\n`;
       message += `  ฿${totalOutgoingTHB.toFixed(2)}\n`;
       message += `  $${totalOutgoingUSD.toFixed(2)}\n\n`;
-      message += `📈 计算(汇率${exchangeRate}, 费率${feeRate}%):\n`;
+      message += `📈 计算(汇率${exchangeRate}, 入款费率${incomeFeeRate}%, 下发费率${outgoingFeeRate}%):\n`;
       message += `  总入款: ฿${totalIncome.toFixed(2)}\n`;
       message += `  实际入款: ฿${actualIncome.toFixed(2)}\n`;
       message += `  总下发: ฿${totalOutgoing.toFixed(2)}\n`;
