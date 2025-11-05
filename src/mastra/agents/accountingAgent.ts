@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { PostgresStore } from "@mastra/pg";
@@ -15,6 +15,11 @@ import {
   convertCurrency,
   getMultipleExchangeRates,
 } from "../tools/exchangeRateTool";
+
+const openai = createOpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+});
 
 /**
  * Accounting Agent for Telegram Bot
@@ -110,7 +115,7 @@ export const accountingAgent = new Agent({
 - 保护用户的财务隐私
 `,
 
-  model: openai.responses("gpt-4o"),
+  model: openai.responses("gpt-5"),
   
   tools: {
     addIncomeRecord,
