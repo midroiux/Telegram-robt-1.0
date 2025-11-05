@@ -20,7 +20,7 @@ function getGoogleSheetsClient() {
  */
 export const setExchangeRate = createTool({
   id: "set-exchange-rate",
-  description: "设置群组的 CNY/USDT 汇率,格式: 设置汇率10",
+  description: "设置群组的 THB/USD 汇率,格式: 设置汇率35",
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
@@ -263,18 +263,18 @@ export const getGroupSettings = createTool({
       // 返回默认设置
       return {
         success: true,
-        exchangeRate: 7.2,
+        exchangeRate: 35,
         feeRate: 5,
         cutoffTime: 6,
         allUsersMode: false,
         realtimeRate: false,
-        message: "当前使用默认设置:\n汇率: 7.2\n费率: 5%\n日切时间: 6点",
+        message: "当前使用默认设置:\n汇率: 35\n费率: 5%\n日切时间: 6点",
       };
     } catch (error: any) {
       logger?.error("❌ [GetGroupSettings] 获取失败", error);
       return {
         success: false,
-        exchangeRate: 7.2,
+        exchangeRate: 35,
         feeRate: 5,
         cutoffTime: 6,
         allUsersMode: false,
@@ -286,29 +286,29 @@ export const getGroupSettings = createTool({
 });
 
 /**
- * Tool: Convert CNY to USDT
- * 将人民币转换为USDT (z100命令)
+ * Tool: Convert THB to USD
+ * 将泰铢转换为美元 (z100命令)
  */
-export const convertCNYtoUSDT = createTool({
-  id: "convert-cny-to-usdt",
-  description: "将人民币金额转换为USDT,格式: z100 (将100元转换为USDT)",
+export const convertTHBtoUSD = createTool({
+  id: "convert-thb-to-usd",
+  description: "将泰铢金额转换为美元,格式: z100 (将100฿转换为$)",
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
-    amount: z.number().describe("人民币金额"),
+    amount: z.number().describe("泰铢金额"),
   }),
   
   outputSchema: z.object({
     success: z.boolean(),
-    cnyAmount: z.number(),
-    usdtAmount: z.number(),
+    thbAmount: z.number(),
+    usdAmount: z.number(),
     exchangeRate: z.number(),
     message: z.string(),
   }),
   
   execute: async ({ context, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info("🔧 [ConvertCNYtoUSDT] 转换金额", context);
+    logger?.info("🔧 [ConvertTHBtoUSD] 转换金额", context);
     
     try {
       const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
@@ -324,32 +324,32 @@ export const convertCNYtoUSDT = createTool({
       });
       
       const rows = response.data.values || [];
-      let exchangeRate = 7.2; // 默认汇率
+      let exchangeRate = 35; // 默认汇率 THB/USD
       
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][0] === context.groupId) {
-          exchangeRate = parseFloat(rows[i][1] || "7.2");
+          exchangeRate = parseFloat(rows[i][1] || "35");
           break;
         }
       }
       
-      const usdtAmount = context.amount / exchangeRate;
+      const usdAmount = context.amount / exchangeRate;
       
-      logger?.info("✅ [ConvertCNYtoUSDT] 转换成功");
+      logger?.info("✅ [ConvertTHBtoUSD] 转换成功");
       
       return {
         success: true,
-        cnyAmount: context.amount,
-        usdtAmount: parseFloat(usdtAmount.toFixed(2)),
+        thbAmount: context.amount,
+        usdAmount: parseFloat(usdAmount.toFixed(2)),
         exchangeRate,
-        message: `💱 ${context.amount} CNY = ${usdtAmount.toFixed(2)} USDT\n汇率: ${exchangeRate}`,
+        message: `💱 ฿${context.amount} = $${usdAmount.toFixed(2)}\n汇率: ${exchangeRate}`,
       };
     } catch (error: any) {
-      logger?.error("❌ [ConvertCNYtoUSDT] 转换失败", error);
+      logger?.error("❌ [ConvertTHBtoUSD] 转换失败", error);
       return {
         success: false,
-        cnyAmount: context.amount,
-        usdtAmount: 0,
+        thbAmount: context.amount,
+        usdAmount: 0,
         exchangeRate: 0,
         message: `❌ 转换失败: ${error.message}`,
       };
@@ -485,12 +485,12 @@ export const showCurrentRates = createTool({
       
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][0] === context.groupId) {
-          const exchangeRate = parseFloat(rows[i][1] || "7.2");
+          const exchangeRate = parseFloat(rows[i][1] || "35");
           const feeRate = parseFloat(rows[i][2] || "5");
           const isRealtime = rows[i][5] === "是";
           
           const message = `📊 当前汇率情况:\n\n` +
-            `💱 汇率: ${exchangeRate} CNY/USDT\n` +
+            `💱 汇率: ${exchangeRate} THB/USD (฿/$)\n` +
             `💰 费率: ${feeRate}%\n` +
             `${isRealtime ? '🌐 实时汇率: 已启用' : '📌 固定汇率模式'}`;
           
@@ -505,7 +505,7 @@ export const showCurrentRates = createTool({
       
       return {
         success: true,
-        message: `📊 当前汇率情况:\n\n💱 汇率: 7.2 CNY/USDT\n💰 费率: 5%\n📌 使用默认设置`,
+        message: `📊 当前汇率情况:\n\n💱 汇率: 35 THB/USD (฿/$)\n💰 费率: 5%\n📌 使用默认设置`,
       };
     } catch (error: any) {
       logger?.error("❌ [ShowCurrentRates] 显示失败", error);

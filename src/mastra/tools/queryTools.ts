@@ -53,12 +53,12 @@ export const showAllBills = createTool({
       });
       
       const settingsRows = settingsResponse.data.values || [];
-      let exchangeRate = 7.2;
+      let exchangeRate = 35; // THB/USD 默认汇率
       let feeRate = 5;
       
       for (let i = 1; i < settingsRows.length; i++) {
         if (settingsRows[i][0] === context.groupId) {
-          exchangeRate = parseFloat(settingsRows[i][1] || "7.2");
+          exchangeRate = parseFloat(settingsRows[i][1] || "35");
           feeRate = parseFloat(settingsRows[i][2] || "5");
           break;
         }
@@ -71,9 +71,9 @@ export const showAllBills = createTool({
       });
       
       const incomeRows = incomeResponse.data.values || [];
-      let totalIncomeCNY = 0;
-      let totalIncomeUSDT = 0;
-      const userIncomes: { [key: string]: { cny: number; usdt: number } } = {};
+      let totalIncomeTHB = 0;
+      let totalIncomeUSD = 0;
+      const userIncomes: { [key: string]: { thb: number; usd: number } } = {};
       
       for (let i = 1; i < incomeRows.length; i++) {
         if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
@@ -82,15 +82,15 @@ export const showAllBills = createTool({
           const currency = incomeRows[i][6];
           
           if (!userIncomes[username]) {
-            userIncomes[username] = { cny: 0, usdt: 0 };
+            userIncomes[username] = { thb: 0, usd: 0 };
           }
           
-          if (currency === "CNY") {
-            totalIncomeCNY += amount;
-            userIncomes[username].cny += amount;
+          if (currency === "THB") {
+            totalIncomeTHB += amount;
+            userIncomes[username].thb += amount;
           } else {
-            totalIncomeUSDT += amount;
-            userIncomes[username].usdt += amount;
+            totalIncomeUSD += amount;
+            userIncomes[username].usd += amount;
           }
         }
       }
@@ -102,9 +102,9 @@ export const showAllBills = createTool({
       });
       
       const outgoingRows = outgoingResponse.data.values || [];
-      let totalOutgoingCNY = 0;
-      let totalOutgoingUSDT = 0;
-      const userOutgoings: { [key: string]: { cny: number; usdt: number } } = {};
+      let totalOutgoingTHB = 0;
+      let totalOutgoingUSD = 0;
+      const userOutgoings: { [key: string]: { thb: number; usd: number } } = {};
       
       for (let i = 1; i < outgoingRows.length; i++) {
         if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
@@ -113,22 +113,22 @@ export const showAllBills = createTool({
           const currency = outgoingRows[i][6];
           
           if (!userOutgoings[username]) {
-            userOutgoings[username] = { cny: 0, usdt: 0 };
+            userOutgoings[username] = { thb: 0, usd: 0 };
           }
           
-          if (currency === "CNY") {
-            totalOutgoingCNY += amount;
-            userOutgoings[username].cny += amount;
+          if (currency === "THB") {
+            totalOutgoingTHB += amount;
+            userOutgoings[username].thb += amount;
           } else {
-            totalOutgoingUSDT += amount;
-            userOutgoings[username].usdt += amount;
+            totalOutgoingUSD += amount;
+            userOutgoings[username].usd += amount;
           }
         }
       }
       
-      // 计算总额(转换为CNY)
-      const totalIncome = totalIncomeCNY + (totalIncomeUSDT * exchangeRate);
-      const totalOutgoing = totalOutgoingCNY + (totalOutgoingUSDT * exchangeRate);
+      // 计算总额(转换为THB)
+      const totalIncome = totalIncomeTHB + (totalIncomeUSD * exchangeRate);
+      const totalOutgoing = totalOutgoingTHB + (totalOutgoingUSD * exchangeRate);
       
       // 应用费率
       const actualIncome = totalIncome * (1 - feeRate / 100);
@@ -138,17 +138,17 @@ export const showAllBills = createTool({
       // 构建消息
       let message = `📊 群组账单汇总\n\n`;
       message += `💰 总入款:\n`;
-      message += `  CNY: ${totalIncomeCNY.toFixed(2)}\n`;
-      message += `  USDT: ${totalIncomeUSDT.toFixed(2)}\n\n`;
+      message += `  ฿${totalIncomeTHB.toFixed(2)}\n`;
+      message += `  $${totalIncomeUSD.toFixed(2)}\n\n`;
       message += `💸 总下发:\n`;
-      message += `  CNY: ${totalOutgoingCNY.toFixed(2)}\n`;
-      message += `  USDT: ${totalOutgoingUSDT.toFixed(2)}\n\n`;
+      message += `  ฿${totalOutgoingTHB.toFixed(2)}\n`;
+      message += `  $${totalOutgoingUSD.toFixed(2)}\n\n`;
       message += `📈 计算(汇率${exchangeRate}, 费率${feeRate}%):\n`;
-      message += `  总入款: ${totalIncome.toFixed(2)} CNY\n`;
-      message += `  实际入款: ${actualIncome.toFixed(2)} CNY\n`;
-      message += `  总下发: ${totalOutgoing.toFixed(2)} CNY\n`;
-      message += `  实际下发: ${actualOutgoing.toFixed(2)} CNY\n`;
-      message += `  净盈亏: ${netProfit.toFixed(2)} CNY`;
+      message += `  总入款: ฿${totalIncome.toFixed(2)}\n`;
+      message += `  实际入款: ฿${actualIncome.toFixed(2)}\n`;
+      message += `  总下发: ฿${totalOutgoing.toFixed(2)}\n`;
+      message += `  实际下发: ฿${actualOutgoing.toFixed(2)}\n`;
+      message += `  净盈亏: ฿${netProfit.toFixed(2)}`;
       
       logger?.info("✅ [ShowAllBills] 查询成功");
       
@@ -210,8 +210,8 @@ export const showUserBills = createTool({
       });
       
       const incomeRows = incomeResponse.data.values || [];
-      let incomeCNY = 0;
-      let incomeUSDT = 0;
+      let incomeTHB = 0;
+      let incomeUSD = 0;
       const incomeRecords: string[] = [];
       
       for (let i = 1; i < incomeRows.length; i++) {
@@ -221,14 +221,15 @@ export const showUserBills = createTool({
           const amount = parseFloat(incomeRows[i][5]);
           const currency = incomeRows[i][6];
           const time = incomeRows[i][1];
+          const symbol = currency === "USD" ? "$" : "฿";
           
-          if (currency === "CNY") {
-            incomeCNY += amount;
+          if (currency === "THB") {
+            incomeTHB += amount;
           } else {
-            incomeUSDT += amount;
+            incomeUSD += amount;
           }
           
-          incomeRecords.push(`  ${time}: +${amount} ${currency}`);
+          incomeRecords.push(`  ${time}: +${symbol}${amount}`);
         }
       }
       
@@ -239,8 +240,8 @@ export const showUserBills = createTool({
       });
       
       const outgoingRows = outgoingResponse.data.values || [];
-      let outgoingCNY = 0;
-      let outgoingUSDT = 0;
+      let outgoingTHB = 0;
+      let outgoingUSD = 0;
       const outgoingRecords: string[] = [];
       
       for (let i = 1; i < outgoingRows.length; i++) {
@@ -250,14 +251,15 @@ export const showUserBills = createTool({
           const amount = parseFloat(outgoingRows[i][5]);
           const currency = outgoingRows[i][6];
           const time = outgoingRows[i][1];
+          const symbol = currency === "USD" ? "$" : "฿";
           
-          if (currency === "CNY") {
-            outgoingCNY += amount;
+          if (currency === "THB") {
+            outgoingTHB += amount;
           } else {
-            outgoingUSDT += amount;
+            outgoingUSD += amount;
           }
           
-          outgoingRecords.push(`  ${time}: -${amount} ${currency}`);
+          outgoingRecords.push(`  ${time}: -${symbol}${amount}`);
         }
       }
       
@@ -266,12 +268,12 @@ export const showUserBills = createTool({
       if (incomeRecords.length > 0) {
         message += incomeRecords.slice(-5).join('\n') + '\n';
       }
-      message += `  总计: CNY ${incomeCNY.toFixed(2)} | USDT ${incomeUSDT.toFixed(2)}\n\n`;
+      message += `  总计: ฿${incomeTHB.toFixed(2)} | $${incomeUSD.toFixed(2)}\n\n`;
       message += `💸 下发记录:\n`;
       if (outgoingRecords.length > 0) {
         message += outgoingRecords.slice(-5).join('\n') + '\n';
       }
-      message += `  总计: CNY ${outgoingCNY.toFixed(2)} | USDT ${outgoingUSDT.toFixed(2)}`;
+      message += `  总计: ฿${outgoingTHB.toFixed(2)} | $${outgoingUSD.toFixed(2)}`;
       
       logger?.info("✅ [ShowUserBills] 查询成功");
       
@@ -369,8 +371,9 @@ export const showDetailedRecords = createTool({
       
       recentRecords.forEach((record, index) => {
         const sign = record.type === "入款" ? "+" : "-";
+        const symbol = record.currency === "USD" ? "$" : "฿";
         message += `${index + 1}. [${record.type}] ${record.user}\n`;
-        message += `   ${sign}${record.amount} ${record.currency}\n`;
+        message += `   ${sign}${symbol}${record.amount}\n`;
         message += `   ${record.time}\n\n`;
       });
       

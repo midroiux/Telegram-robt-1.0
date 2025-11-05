@@ -16,18 +16,18 @@ function getGoogleSheetsClient() {
 
 /**
  * Tool: Add Income Record
- * 添加入款记录 (+1000 或 +1000u)
+ * 添加入款记录 (+1000 或 +1000$)
  */
 export const addIncomeRecord = createTool({
   id: "add-income-record",
-  description: "添加入款记录,格式: +1000 (CNY) 或 +1000u (USDT)",
+  description: "添加入款记录,格式: +1000 (泰铢฿) 或 +1000$ (美元$)",
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
     userId: z.string().describe("用户ID"),
     username: z.string().describe("用户名"),
     amount: z.number().describe("入款金额"),
-    currency: z.string().default("CNY").describe("币种: CNY 或 USDT"),
+    currency: z.string().default("THB").describe("币种: THB(泰铢) 或 USD(美元)"),
     messageId: z.string().optional().describe("Telegram 消息ID"),
   }),
   
@@ -74,9 +74,10 @@ export const addIncomeRecord = createTool({
       
       logger?.info("✅ [AddIncomeRecord] 入款记录成功");
       
+      const symbol = context.currency === "USD" ? "$" : "฿";
       return {
         success: true,
-        message: `✅ 入款成功: ${context.amount} ${context.currency}`,
+        message: `✅ 入款成功: ${symbol}${context.amount}`,
         recordId,
       };
     } catch (error: any) {
@@ -91,18 +92,18 @@ export const addIncomeRecord = createTool({
 
 /**
  * Tool: Add Outgoing Record
- * 添加下发记录 (下发1000 或 下发1000u)
+ * 添加下发记录 (下发1000 或 下发1000$)
  */
 export const addOutgoingRecord = createTool({
   id: "add-outgoing-record",
-  description: "添加下发记录,格式: 下发1000 (CNY) 或 下发1000u (USDT)",
+  description: "添加下发记录,格式: 下发1000 (泰铢฿) 或 下发1000$ (美元$)",
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
     userId: z.string().describe("用户ID"),
     username: z.string().describe("用户名"),
     amount: z.number().describe("下发金额"),
-    currency: z.string().default("CNY").describe("币种: CNY 或 USDT"),
+    currency: z.string().default("THB").describe("币种: THB(泰铢) 或 USD(美元)"),
     messageId: z.string().optional().describe("Telegram 消息ID"),
   }),
   
@@ -149,9 +150,10 @@ export const addOutgoingRecord = createTool({
       
       logger?.info("✅ [AddOutgoingRecord] 下发记录成功");
       
+      const symbol = context.currency === "USD" ? "$" : "฿";
       return {
         success: true,
-        message: `✅ 下发成功: ${context.amount} ${context.currency}`,
+        message: `✅ 下发成功: ${symbol}${context.amount}`,
         recordId,
       };
     } catch (error: any) {
@@ -231,12 +233,13 @@ export const revokeLastIncome = createTool({
       
       const amount = rows[lastIndex][5];
       const currency = rows[lastIndex][6];
+      const symbol = currency === "USD" ? "$" : "฿";
       
       logger?.info("✅ [RevokeLastIncome] 撤销成功");
       
       return {
         success: true,
-        message: `✅ 已撤销入款: ${amount} ${currency}`,
+        message: `✅ 已撤销入款: ${symbol}${amount}`,
       };
     } catch (error: any) {
       logger?.error("❌ [RevokeLastIncome] 撤销失败", error);
@@ -313,12 +316,13 @@ export const revokeLastOutgoing = createTool({
       
       const amount = rows[lastIndex][5];
       const currency = rows[lastIndex][6];
+      const symbol = currency === "USD" ? "$" : "฿";
       
       logger?.info("✅ [RevokeLastOutgoing] 撤销成功");
       
       return {
         success: true,
-        message: `✅ 已撤销下发: ${amount} ${currency}`,
+        message: `✅ 已撤销下发: ${symbol}${amount}`,
       };
     } catch (error: any) {
       logger?.error("❌ [RevokeLastOutgoing] 撤销失败", error);
