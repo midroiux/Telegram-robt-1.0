@@ -29,6 +29,14 @@ const processAccountingMessage = createStep({
     message: z.string().describe("用户发送的消息"),
     userId: z.string().describe("用户 ID"),
     chatId: z.number().describe("Telegram chat ID"),
+    entities: z.array(z.any()).optional().describe("消息实体（用于解析@提及）"),
+    replyToMessage: z.object({
+      from: z.object({
+        id: z.number(),
+        username: z.string().optional(),
+        first_name: z.string(),
+      }),
+    }).optional().describe("被回复的消息（用于权限管理）"),
   }),
   
   outputSchema: z.object({
@@ -58,6 +66,122 @@ const processAccountingMessage = createStep({
         return {
           response: `👤 您的信息：\n用户名：${inputData.userName}\n用户ID：\`${inputData.userId}\`\n\n💡 请将此ID提供给管理员以获取操作权限`,
           success: true,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
+      // 🔑 权限管理命令 (无需权限检查，但需要验证是否是管理员)
+      // 方式1: 回复某人消息 + "添加权限"
+      // 方式2: @某人 + "添加权限" (仅text_mention有效)
+      if (msg.includes("添加权限") || msg.includes("添加操作人")) {
+        logger?.info("🔑 [Permission] 检测到添加权限命令");
+        
+        let targetUserId: string | null = null;
+        let targetUserName: string | null = null;
+        
+        // 方式1: 检查是否是回复消息
+        if (inputData.replyToMessage) {
+          targetUserId = inputData.replyToMessage.from.id.toString();
+          targetUserName = inputData.replyToMessage.from.username || inputData.replyToMessage.from.first_name;
+          logger?.info("✅ [Permission] 从回复消息获取用户", {
+            userId: targetUserId,
+            userName: targetUserName,
+          });
+        }
+        // 方式2: 检查是否@了某人 (text_mention)
+        else if (inputData.entities && inputData.entities.length > 0) {
+          for (const entity of inputData.entities) {
+            if (entity.type === "text_mention" && entity.user) {
+              targetUserId = entity.user.id.toString();
+              targetUserName = entity.user.username || entity.user.first_name;
+              logger?.info("✅ [Permission] 从text_mention获取用户", {
+                userId: targetUserId,
+                userName: targetUserName,
+              });
+              break;
+            }
+          }
+        }
+        
+        if (!targetUserId) {
+          return {
+            response: "❌ 添加权限失败\n\n请使用以下方式之一：\n1. 回复某人的消息，然后发送「添加权限」\n2. @某人（无username的用户）并发送「添加权限」\n\n💡 推荐使用方式1（回复消息）",
+            success: false,
+            userName: inputData.userName,
+            chatId: inputData.chatId,
+          };
+        }
+        
+        // 调用addOperator工具
+        const addOperatorTool = await import("../tools/groupAccountingTools");
+        const result = await addOperatorTool.addOperator.execute({
+          context: {
+            groupId,
+            userId: targetUserId,
+            username: targetUserName || "unknown",
+          },
+          runtimeContext,
+        });
+        
+        return {
+          response: result.message,
+          success: result.success,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
+      // 移除权限命令
+      if (msg.includes("移除权限") || msg.includes("删除操作人")) {
+        logger?.info("🔑 [Permission] 检测到移除权限命令");
+        
+        let targetUserName: string | null = null;
+        
+        // 从回复消息获取
+        if (inputData.replyToMessage) {
+          targetUserName = inputData.replyToMessage.from.username || inputData.replyToMessage.from.first_name;
+        }
+        
+        if (!targetUserName) {
+          return {
+            response: "❌ 移除权限失败\n\n请回复某人的消息，然后发送「移除权限」",
+            success: false,
+            userName: inputData.userName,
+            chatId: inputData.chatId,
+          };
+        }
+        
+        const removeOperatorTool = await import("../tools/groupAccountingTools");
+        const result = await removeOperatorTool.removeOperator.execute({
+          context: {
+            groupId,
+            username: targetUserName,
+          },
+          runtimeContext,
+        });
+        
+        return {
+          response: result.message,
+          success: result.success,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
+      // 查看操作人列表
+      if (msg === "操作人列表" || msg === "查看操作人") {
+        logger?.info("🔑 [Permission] 检测到查看操作人命令");
+        
+        const listOperatorsTool = await import("../tools/groupAccountingTools");
+        const result = await listOperatorsTool.listOperators.execute({
+          context: { groupId },
+          runtimeContext,
+        });
+        
+        return {
+          response: result.message,
+          success: result.success,
           userName: inputData.userName,
           chatId: inputData.chatId,
         };
@@ -297,7 +421,7 @@ const processAccountingMessage = createStep({
       // 未匹配到命令
       logger?.info("❓ [FastMatch] 未识别的命令");
       return {
-        response: "命令格式：\n+数字 (入款)\n-数字 (出款)\n总账 (查询)\n日结算 (今日结算)\n入款费率X (设置入款费率)\n下发费率X (设置下发费率)\n我的ID (查询用户ID)\n删除所有账单",
+        response: "📋 命令列表：\n\n💰 记账：\n+数字 (入款)\n-数字 (出款)\n\n📊 查询：\n总账 (查看账单)\n日结算 (今日结算)\n\n⚙️ 设置：\n入款费率X (设置费率)\n下发费率X (设置费率)\n\n🔑 权限管理：\n我的ID (查询ID)\n添加权限 (回复消息)\n移除权限 (回复消息)\n操作人列表",
         success: false,
         userName: inputData.userName,
         chatId: inputData.chatId,
