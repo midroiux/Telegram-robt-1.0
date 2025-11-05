@@ -48,15 +48,60 @@ export const showAllBills = createTool({
       let outgoingFeeRate = 0;
       let language = "中文"; // 默认语言
       let lastRefreshTime = ""; // 最后刷新时间（日切时间点）
+      let cutoffHour = 6; // 日切时间
+      let settingsRowIndex = -1;
       
       for (let i = 1; i < settingsRows.length; i++) {
         if (settingsRows[i][0] === context.groupId) {
           exchangeRate = parseFloat(settingsRows[i][1] || "35");
           incomeFeeRate = parseFloat(settingsRows[i][2] || "5");
           outgoingFeeRate = parseFloat(settingsRows[i][3] || "0");
+          cutoffHour = parseInt(settingsRows[i][4] || "6");
           language = settingsRows[i][9] || "中文";
           lastRefreshTime = settingsRows[i][7] || ""; // H列：最后刷新时间
+          settingsRowIndex = i;
           break;
+        }
+      }
+      
+      // 检查是否需要自动更新日切时间
+      if (settingsRowIndex !== -1 && cutoffHour >= 0) {
+        const now = new Date();
+        const bangkokTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+        
+        // 计算今天的日切时间点
+        const todayCutoff = new Date(bangkokTime);
+        todayCutoff.setHours(cutoffHour, 0, 0, 0);
+        
+        // 如果没有最后刷新时间，或者当前时间已经过了今天的日切时间点，且最后刷新时间还是今天日切之前的
+        const shouldRefresh = !lastRefreshTime || 
+          (bangkokTime >= todayCutoff && 
+           (!lastRefreshTime || new Date(lastRefreshTime) < todayCutoff));
+        
+        if (shouldRefresh) {
+          // 更新最后刷新时间为今天的日切时间点
+          const newRefreshTime = todayCutoff.toLocaleString('zh-CN', { 
+            timeZone: 'Asia/Bangkok',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          }).replace(/\//g, '-');
+          
+          await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `GroupSettings!H${settingsRowIndex + 1}`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: {
+              values: [[newRefreshTime]],
+            },
+          });
+          
+          lastRefreshTime = newRefreshTime;
+          logger?.info(`✅ [ShowAllBills] 自动更新日切时间: ${newRefreshTime}`);
         }
       }
       

@@ -578,56 +578,27 @@ export const setCutoffTime = createTool({
       
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][0] === context.groupId) {
-          // 获取当前时间作为"最后刷新时间"
-          const now = new Date();
-          const lastRefreshTime = now.toLocaleString('zh-CN', { 
-            timeZone: 'Asia/Bangkok',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          }).replace(/\//g, '-');
-          
-          // 同时更新日切时间(E列)和最后刷新时间(H列)
+          // 只更新日切时间(E列)，不更新最后刷新时间
+          // 最后刷新时间会在查询账单时自动更新
           await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `群组设置!E${i + 1}:H${i + 1}`,
+            range: `GroupSettings!E${i + 1}`,
             valueInputOption: "USER_ENTERED",
             requestBody: {
-              values: [[
-                context.hour, // E列：日切时间
-                rows[i][5] || "否", // F列：所有人可用
-                rows[i][6] || "否", // G列：实时汇率
-                lastRefreshTime, // H列：最后刷新时间
-              ]],
+              values: [[context.hour]],
             },
           });
           
-          logger?.info("✅ [SetCutoffTime] 设置成功，已更新最后刷新时间");
+          logger?.info("✅ [SetCutoffTime] 设置成功");
           
           return {
             success: true,
-            message: `✅ 日切时间已设置为: ${context.hour}:00\n📅 从现在开始统计新的账单`,
+            message: `✅ 日切时间已设置为: ${context.hour}:00\n⏰ 系统将在每天 ${context.hour}:00 自动重新开始统计账单`,
           };
         }
       }
       
       // 如果群组不存在,创建新记录
-      const now = new Date();
-      const lastRefreshTime = now.toLocaleString('zh-CN', { 
-        timeZone: 'Asia/Bangkok',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).replace(/\//g, '-');
-      
       await sheets.spreadsheets.values.append({
         spreadsheetId,
         range: "GroupSettings!A:J",
@@ -641,7 +612,7 @@ export const setCutoffTime = createTool({
             context.hour, // E: 日切时间
             "否", // F: 所有人可用
             "否", // G: 实时汇率
-            lastRefreshTime, // H: 最后刷新时间
+            "", // H: 最后刷新时间（首次查询账单时自动设置）
             "否", // I: 禁言状态
             "中文", // J: 语言
           ]],
@@ -652,7 +623,7 @@ export const setCutoffTime = createTool({
       
       return {
         success: true,
-        message: `✅ 日切时间已设置为: ${context.hour}:00\n📅 从现在开始统计新的账单`,
+        message: `✅ 日切时间已设置为: ${context.hour}:00\n⏰ 系统将在每天 ${context.hour}:00 自动重新开始统计账单`,
       };
     } catch (error: any) {
       logger?.error("❌ [SetCutoffTime] 设置失败", error);
