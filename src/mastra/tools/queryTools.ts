@@ -205,8 +205,7 @@ export const showAllBills = createTool({
       };
       
       // 构建消息 - 按照用户提供的模板格式
-      let message = `${texts.title} (${texts.languageSwitch})\n\n`;
-      message += `${texts.income}\n`;
+      let message = `${texts.income}\n`;
       
       // 显示入款记录
       if (incomeRecords.length === 0) {
