@@ -47,6 +47,7 @@ export const showAllBills = createTool({
       let incomeFeeRate = 5;
       let outgoingFeeRate = 0;
       let language = "中文"; // 默认语言
+      let lastRefreshTime = ""; // 最后刷新时间（日切时间点）
       
       for (let i = 1; i < settingsRows.length; i++) {
         if (settingsRows[i][0] === context.groupId) {
@@ -54,6 +55,7 @@ export const showAllBills = createTool({
           incomeFeeRate = parseFloat(settingsRows[i][2] || "5");
           outgoingFeeRate = parseFloat(settingsRows[i][3] || "0");
           language = settingsRows[i][9] || "中文";
+          lastRefreshTime = settingsRows[i][7] || ""; // H列：最后刷新时间
           break;
         }
       }
@@ -72,6 +74,12 @@ export const showAllBills = createTool({
       for (let i = 1; i < incomeRows.length; i++) {
         if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
           const timestamp = incomeRows[i][1] || "";
+          
+          // 如果设置了最后刷新时间，只统计刷新时间之后的记录
+          if (lastRefreshTime && timestamp < lastRefreshTime) {
+            continue; // 跳过日切时间之前的记录
+          }
+          
           const amount = parseFloat(incomeRows[i][5]);
           const currency = incomeRows[i][6];
           
@@ -103,6 +111,12 @@ export const showAllBills = createTool({
       for (let i = 1; i < outgoingRows.length; i++) {
         if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
           const timestamp = outgoingRows[i][1] || "";
+          
+          // 如果设置了最后刷新时间，只统计刷新时间之后的记录
+          if (lastRefreshTime && timestamp < lastRefreshTime) {
+            continue; // 跳过日切时间之前的记录
+          }
+          
           const amount = parseFloat(outgoingRows[i][5]);
           const currency = outgoingRows[i][6];
           
