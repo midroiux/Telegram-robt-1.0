@@ -36,75 +36,6 @@ export const showAllBills = createTool({
       
       const sheets = await getUncachableGoogleSheetClient();
       
-      // 获取群组设置
-      const settingsResponse = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: "GroupSettings!A:J",
-      });
-      
-      const settingsRows = settingsResponse.data.values || [];
-      let exchangeRate = 35; // THB/USD 默认汇率
-      let incomeFeeRate = 5;
-      let outgoingFeeRate = 0;
-      let language = "中文"; // 默认语言
-      let lastRefreshTime = ""; // 最后刷新时间（日切时间点）
-      let cutoffHour = 6; // 日切时间
-      let settingsRowIndex = -1;
-      
-      for (let i = 1; i < settingsRows.length; i++) {
-        if (settingsRows[i][0] === context.groupId) {
-          exchangeRate = parseFloat(settingsRows[i][1] || "35");
-          incomeFeeRate = parseFloat(settingsRows[i][2] || "5");
-          outgoingFeeRate = parseFloat(settingsRows[i][3] || "0");
-          cutoffHour = parseInt(settingsRows[i][4] || "6");
-          language = settingsRows[i][9] || "中文";
-          lastRefreshTime = settingsRows[i][7] || ""; // H列：最后刷新时间
-          settingsRowIndex = i;
-          break;
-        }
-      }
-      
-      // 检查是否需要自动更新日切时间
-      if (settingsRowIndex !== -1 && cutoffHour >= 0) {
-        const now = new Date();
-        const bangkokTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-        
-        // 计算今天的日切时间点
-        const todayCutoff = new Date(bangkokTime);
-        todayCutoff.setHours(cutoffHour, 0, 0, 0);
-        
-        // 如果没有最后刷新时间，或者当前时间已经过了今天的日切时间点，且最后刷新时间还是今天日切之前的
-        const shouldRefresh = !lastRefreshTime || 
-          (bangkokTime >= todayCutoff && 
-           (!lastRefreshTime || new Date(lastRefreshTime) < todayCutoff));
-        
-        if (shouldRefresh) {
-          // 更新最后刷新时间为今天的日切时间点
-          const newRefreshTime = todayCutoff.toLocaleString('zh-CN', { 
-            timeZone: 'Asia/Bangkok',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          }).replace(/\//g, '-');
-          
-          await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: `GroupSettings!H${settingsRowIndex + 1}`,
-            valueInputOption: "USER_ENTERED",
-            requestBody: {
-              values: [[newRefreshTime]],
-            },
-          });
-          
-          lastRefreshTime = newRefreshTime;
-          logger?.info(`✅ [ShowAllBills] 自动更新日切时间: ${newRefreshTime}`);
-        }
-      }
-      
       // 获取入款记录
       const incomeResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -114,25 +45,11 @@ export const showAllBills = createTool({
       const incomeRows = incomeResponse.data.values || [];
       let totalIncomeTHB = 0;
       let totalIncomeUSD = 0;
-      const incomeRecords: Array<{time: string, amount: number, currency: string}> = [];
       
       for (let i = 1; i < incomeRows.length; i++) {
         if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
-          const timestamp = incomeRows[i][1] || "";
-          
-          // 如果设置了最后刷新时间，只统计刷新时间之后的记录
-          if (lastRefreshTime && timestamp < lastRefreshTime) {
-            continue; // 跳过日切时间之前的记录
-          }
-          
           const amount = parseFloat(incomeRows[i][5]);
           const currency = incomeRows[i][6];
-          
-          // 提取时间部分 (HH:MM:SS)
-          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
-          const time = timeMatch ? timeMatch[1] : timestamp;
-          
-          incomeRecords.push({ time, amount, currency });
           
           if (currency === "THB") {
             totalIncomeTHB += amount;
@@ -142,7 +59,7 @@ export const showAllBills = createTool({
         }
       }
       
-      // 获取下发记录
+      // 获取出款记录
       const outgoingResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
         range: "Withdrawals!A:I",
@@ -151,25 +68,11 @@ export const showAllBills = createTool({
       const outgoingRows = outgoingResponse.data.values || [];
       let totalOutgoingTHB = 0;
       let totalOutgoingUSD = 0;
-      const outgoingRecords: Array<{time: string, amount: number, currency: string}> = [];
       
       for (let i = 1; i < outgoingRows.length; i++) {
         if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
-          const timestamp = outgoingRows[i][1] || "";
-          
-          // 如果设置了最后刷新时间，只统计刷新时间之后的记录
-          if (lastRefreshTime && timestamp < lastRefreshTime) {
-            continue; // 跳过日切时间之前的记录
-          }
-          
           const amount = parseFloat(outgoingRows[i][5]);
           const currency = outgoingRows[i][6];
-          
-          // 提取时间部分 (HH:MM:SS)
-          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
-          const time = timeMatch ? timeMatch[1] : timestamp;
-          
-          outgoingRecords.push({ time, amount, currency });
           
           if (currency === "THB") {
             totalOutgoingTHB += amount;
@@ -179,76 +82,34 @@ export const showAllBills = createTool({
         }
       }
       
-      // 计算总额(转换为THB)
-      const totalIncome = totalIncomeTHB + (totalIncomeUSD * exchangeRate);
-      const totalOutgoing = totalOutgoingTHB + (totalOutgoingUSD * exchangeRate);
+      // 计算余额
+      const balanceTHB = totalIncomeTHB - totalOutgoingTHB;
+      const balanceUSD = totalIncomeUSD - totalOutgoingUSD;
       
-      // 应用费率（入款和下发使用不同的费率）
-      const actualIncome = totalIncome * (1 - incomeFeeRate / 100);
-      const actualOutgoing = totalOutgoing * (1 + outgoingFeeRate / 100);
-      const balance = actualIncome - actualOutgoing;
-      
-      // 语言文本配置
-      const isThai = language === "泰语";
-      const texts = {
-        title: "TOM记账机器人测试",
-        income: isThai ? "ฝาก(฿):" : "入款(฿):",
-        outgoing: isThai ? "ถอน(฿):" : "下发(฿):",
-        totalIncome: isThai ? "ฝากทั้งหมด:" : "总入款:",
-        incomeFeeRate: isThai ? "อัตราค่าธรรมเนียมฝาก:" : "入款费率:",
-        outgoingFeeRate: isThai ? "อัตราค่าธรรมเนียมถอน:" : "下发费率:",
-        usdtRate: isThai ? "อัตรา USDT:" : "USDT汇率:",
-        shouldPay: isThai ? "ควรจ่าย:" : "应下发:",
-        totalPaid: isThai ? "ถอนทั้งหมด:" : "总下发:",
-        balance: isThai ? "คงเหลือ:" : "余:",
-        languageSwitch: isThai ? "切换中文" : "切换泰语",
-      };
-      
-      // 构建消息 - 按照用户提供的模板格式
-      let message = `${texts.income}\n`;
-      
-      // 显示入款记录
-      if (incomeRecords.length === 0) {
-        message += `0\n`;
-      } else {
-        for (const record of incomeRecords) {
-          const amountInUSD = record.amount / exchangeRate;
-          message += `${record.time} ${record.amount.toFixed(2)} / ${exchangeRate.toFixed(2)}= ${amountInUSD.toFixed(2)}U\n`;
-        }
+      // 构建极简消息
+      let message = `💰 总入款: ฿${totalIncomeTHB.toFixed(2)}`;
+      if (totalIncomeUSD > 0) {
+        message += ` | $${totalIncomeUSD.toFixed(2)}`;
       }
       
-      message += `\n${texts.outgoing}`;
-      
-      // 显示下发记录
-      if (outgoingRecords.length === 0) {
-        message += `0\n`;
-      } else {
-        message += `\n`;
-        for (const record of outgoingRecords) {
-          const amountInUSD = record.amount / exchangeRate;
-          message += `${record.time} ${record.amount.toFixed(2)} / ${exchangeRate.toFixed(2)}= ${amountInUSD.toFixed(2)}U\n`;
-        }
+      message += `\n💸 总出款: ฿${totalOutgoingTHB.toFixed(2)}`;
+      if (totalOutgoingUSD > 0) {
+        message += ` | $${totalOutgoingUSD.toFixed(2)}`;
       }
       
-      // 总入款和费率
-      message += `\n${texts.totalIncome} ${totalIncome.toFixed(2)}\n`;
-      message += `${texts.incomeFeeRate} ${incomeFeeRate.toFixed(1)}%\n`;
-      message += `${texts.outgoingFeeRate} ${outgoingFeeRate.toFixed(1)}%\n`;
-      
-      // 汇率和计算结果
-      message += `\n${texts.usdtRate} ${exchangeRate.toFixed(2)}\n`;
-      message += `${texts.shouldPay} ${actualIncome.toFixed(2)}   | ${(actualIncome / exchangeRate).toFixed(2)} USDT\n`;
-      message += `${texts.totalPaid} ${actualOutgoing.toFixed(4)} | ${(actualOutgoing / exchangeRate).toFixed(4)} USDT\n`;
-      message += `${texts.balance} ${balance.toFixed(2)} | ${(balance / exchangeRate).toFixed(2)} USDT`;
+      message += `\n📊 余额: ฿${balanceTHB.toFixed(2)}`;
+      if (balanceUSD !== 0) {
+        message += ` | $${balanceUSD.toFixed(2)}`;
+      }
       
       logger?.info("✅ [ShowAllBills] 查询成功");
       
       return {
         success: true,
         message,
-        totalIncome,
-        totalOutgoing,
-        netProfit: balance,
+        totalIncome: totalIncomeTHB + totalIncomeUSD,
+        totalOutgoing: totalOutgoingTHB + totalOutgoingUSD,
+        netProfit: balanceTHB + balanceUSD,
       };
     } catch (error: any) {
       logger?.error("❌ [ShowAllBills] 查询失败", error);
