@@ -10,10 +10,11 @@ import { getUncachableGoogleSheetClient } from "../../integrations/googleSheets"
  */
 export const showAllBills = createTool({
   id: "show-all-bills",
-  description: "显示群组所有人的账单汇总",
+  description: "显示群组账单汇总，默认显示前3笔入款和出款",
   
   inputSchema: z.object({
     groupId: z.string().describe("群组ID"),
+    showAll: z.boolean().default(false).describe("是否显示所有记录（true=结算模式，false=默认显示前3笔）"),
   }),
   
   outputSchema: z.object({
@@ -26,7 +27,7 @@ export const showAllBills = createTool({
   
   execute: async ({ context, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info("🔧 [ShowAllBills] 显示所有账单", context);
+    logger?.info("🔧 [ShowAllBills] 显示账单", { groupId: context.groupId, showAll: context.showAll });
     
     try {
       const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
@@ -36,6 +37,24 @@ export const showAllBills = createTool({
       
       const sheets = await getUncachableGoogleSheetClient();
       
+      // 获取群组设置（费率）
+      const settingsResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "GroupSettings!A:D",
+      });
+      
+      const settingsRows = settingsResponse.data.values || [];
+      let incomeFeeRate = 6; // 默认入款费率6%
+      let outgoingFeeRate = 0; // 默认出款费率0%
+      
+      for (let i = 1; i < settingsRows.length; i++) {
+        if (settingsRows[i][0] === context.groupId) {
+          incomeFeeRate = parseFloat(settingsRows[i][2] || "6");
+          outgoingFeeRate = parseFloat(settingsRows[i][3] || "0");
+          break;
+        }
+      }
+      
       // 获取入款记录
       const incomeResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -43,19 +62,20 @@ export const showAllBills = createTool({
       });
       
       const incomeRows = incomeResponse.data.values || [];
-      let totalIncomeTHB = 0;
-      let totalIncomeUSD = 0;
+      let totalIncome = 0;
+      const incomeRecords: Array<{time: string, amount: number}> = [];
       
       for (let i = 1; i < incomeRows.length; i++) {
         if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
           const amount = parseFloat(incomeRows[i][5]);
-          const currency = incomeRows[i][6];
+          const timestamp = incomeRows[i][1] || "";
           
-          if (currency === "THB") {
-            totalIncomeTHB += amount;
-          } else {
-            totalIncomeUSD += amount;
-          }
+          // 提取时间部分 (HH:MM:SS)
+          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
+          const time = timeMatch ? timeMatch[1] : timestamp;
+          
+          incomeRecords.push({ time, amount });
+          totalIncome += amount;
         }
       }
       
@@ -66,50 +86,82 @@ export const showAllBills = createTool({
       });
       
       const outgoingRows = outgoingResponse.data.values || [];
-      let totalOutgoingTHB = 0;
-      let totalOutgoingUSD = 0;
+      let totalOutgoing = 0;
+      const outgoingRecords: Array<{time: string, amount: number}> = [];
       
       for (let i = 1; i < outgoingRows.length; i++) {
         if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
           const amount = parseFloat(outgoingRows[i][5]);
-          const currency = outgoingRows[i][6];
+          const timestamp = outgoingRows[i][1] || "";
           
-          if (currency === "THB") {
-            totalOutgoingTHB += amount;
-          } else {
-            totalOutgoingUSD += amount;
-          }
+          // 提取时间部分 (HH:MM:SS)
+          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
+          const time = timeMatch ? timeMatch[1] : timestamp;
+          
+          outgoingRecords.push({ time, amount });
+          totalOutgoing += amount;
         }
       }
       
-      // 计算余额
-      const balanceTHB = totalIncomeTHB - totalOutgoingTHB;
-      const balanceUSD = totalIncomeUSD - totalOutgoingUSD;
+      // 计算费率后的金额
+      const feeMultiplier = (100 - incomeFeeRate) / 100; // 例如6%费率 -> 0.94
+      const actualIncome = totalIncome * feeMultiplier;
+      const actualOutgoing = totalOutgoing * (1 + outgoingFeeRate / 100);
+      const netProfit = actualIncome - actualOutgoing;
       
-      // 构建极简消息
-      let message = `💰 总入款: ฿${totalIncomeTHB.toFixed(2)}`;
-      if (totalIncomeUSD > 0) {
-        message += ` | $${totalIncomeUSD.toFixed(2)}`;
+      // 构建消息
+      let message = `入款`;
+      
+      // 显示入款记录
+      if (incomeRecords.length === 0) {
+        message += `（0笔）：\n`;
+      } else {
+        const displayRecords = context.showAll ? incomeRecords : incomeRecords.slice(-3);
+        message += `（${context.showAll ? incomeRecords.length : '前3'}笔）：\n`;
+        
+        for (const record of displayRecords) {
+          const actualAmount = record.amount * feeMultiplier;
+          message += ` ${record.time} ${record.amount.toFixed(0)} *${feeMultiplier.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+        }
       }
       
-      message += `\n💸 总出款: ฿${totalOutgoingTHB.toFixed(2)}`;
-      if (totalOutgoingUSD > 0) {
-        message += ` | $${totalOutgoingUSD.toFixed(2)}`;
+      // 显示出款记录
+      message += `\n下发`;
+      if (outgoingRecords.length === 0) {
+        message += `（0笔）：\n`;
+      } else {
+        const displayRecords = context.showAll ? outgoingRecords : outgoingRecords.slice(-3);
+        message += `（${context.showAll ? outgoingRecords.length : '前3'}笔）：\n`;
+        
+        for (const record of displayRecords) {
+          const actualAmount = record.amount * (1 + outgoingFeeRate / 100);
+          const feeMultiplierOut = 1 + outgoingFeeRate / 100;
+          message += ` ${record.time} ${record.amount.toFixed(0)} *${feeMultiplierOut.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+        }
       }
       
-      message += `\n📊 余额: ฿${balanceTHB.toFixed(2)}`;
-      if (balanceUSD !== 0) {
-        message += ` | $${balanceUSD.toFixed(2)}`;
+      // 总入款和费率
+      message += `\n总入款：${totalIncome.toFixed(0)}`;
+      message += `\n入款费率：${incomeFeeRate.toFixed(0)}%`;
+      if (outgoingFeeRate > 0) {
+        message += `\n出款费率：${outgoingFeeRate.toFixed(0)}%`;
       }
+      
+      // 总下发和净利润
+      message += `\n\n总入款：${actualIncome.toFixed(2)}`;
+      if (totalOutgoing > 0) {
+        message += `\n总下发：${actualOutgoing.toFixed(2)}`;
+      }
+      message += `\n净利润=（（总入款-入款费率）-（出款+出款费率））：${netProfit.toFixed(2)}`;
       
       logger?.info("✅ [ShowAllBills] 查询成功");
       
       return {
         success: true,
         message,
-        totalIncome: totalIncomeTHB + totalIncomeUSD,
-        totalOutgoing: totalOutgoingTHB + totalOutgoingUSD,
-        netProfit: balanceTHB + balanceUSD,
+        totalIncome,
+        totalOutgoing,
+        netProfit,
       };
     } catch (error: any) {
       logger?.error("❌ [ShowAllBills] 查询失败", error);
