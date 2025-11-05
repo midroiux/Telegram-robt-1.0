@@ -57,7 +57,7 @@ const processAccountingMessage = createStep({
     
     try {
       const msg = inputData.message.trim();
-      const groupId = "-4948354487"; // 固定群组ID
+      const groupId = inputData.chatId.toString(); // 动态获取群组ID，支持多群组
       
       // 匹配 我的ID (无需权限，让新用户也能查询)
       if (msg === "我的ID" || msg === "我的id" || msg === "/myid") {
