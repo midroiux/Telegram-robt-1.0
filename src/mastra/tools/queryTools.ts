@@ -2,6 +2,15 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getUncachableGoogleSheetClient } from "../../integrations/googleSheets";
 
+// 获取今天的日期字符串（YYYY-MM-DD格式）
+function getTodayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // ============= 账单查询工具 =============
 
 /**
@@ -538,6 +547,199 @@ export const setDailyCutoffTime = createTool({
       return {
         success: false,
         message: `❌ 设置失败: ${error.message}`,
+      };
+    }
+  },
+});
+
+/**
+ * Tool: Daily Settlement
+ * 每日0点自动结算并清空当天账单
+ */
+export const dailySettlement = createTool({
+  id: "daily-settlement",
+  description: "每日自动结算，生成报告并标记当天账单为已结算",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+    chatId: z.number().describe("Telegram chat ID"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+    totalIncome: z.number(),
+    totalOutgoing: z.number(),
+    netProfit: z.number(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [DailySettlement] 开始每日结算", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = await getUncachableGoogleSheetClient();
+      const today = getTodayDateString();
+      
+      // 获取群组设置（费率）
+      const settingsResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "GroupSettings!A:D",
+      });
+      
+      const settingsRows = settingsResponse.data.values || [];
+      let incomeFeeRate = 6;
+      let outgoingFeeRate = 0;
+      
+      for (let i = 1; i < settingsRows.length; i++) {
+        if (settingsRows[i][0] === context.groupId) {
+          incomeFeeRate = parseFloat(settingsRows[i][2] || "6");
+          outgoingFeeRate = parseFloat(settingsRows[i][3] || "0");
+          break;
+        }
+      }
+      
+      // 获取今天的入款记录
+      const incomeResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "Deposits!A:I",
+      });
+      
+      const incomeRows = incomeResponse.data.values || [];
+      let totalIncome = 0;
+      let incomeCount = 0;
+      const incomeRecords: Array<{time: string, amount: number, rowIndex: number}> = [];
+      
+      for (let i = 1; i < incomeRows.length; i++) {
+        const timestamp = incomeRows[i][1] || "";
+        const recordDate = timestamp.split(' ')[0]; // 获取日期部分
+        
+        if (incomeRows[i][2] === context.groupId && 
+            incomeRows[i][7] === "正常" && 
+            recordDate === today) {
+          const amount = parseFloat(incomeRows[i][5]);
+          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
+          const time = timeMatch ? timeMatch[1] : timestamp;
+          
+          incomeRecords.push({ time, amount, rowIndex: i });
+          totalIncome += amount;
+          incomeCount++;
+        }
+      }
+      
+      // 获取今天的出款记录
+      const outgoingResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "Withdrawals!A:I",
+      });
+      
+      const outgoingRows = outgoingResponse.data.values || [];
+      let totalOutgoing = 0;
+      let outgoingCount = 0;
+      const outgoingRecords: Array<{time: string, amount: number, rowIndex: number}> = [];
+      
+      for (let i = 1; i < outgoingRows.length; i++) {
+        const timestamp = outgoingRows[i][1] || "";
+        const recordDate = timestamp.split(' ')[0];
+        
+        if (outgoingRows[i][2] === context.groupId && 
+            outgoingRows[i][7] === "正常" && 
+            recordDate === today) {
+          const amount = parseFloat(outgoingRows[i][5]);
+          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
+          const time = timeMatch ? timeMatch[1] : timestamp;
+          
+          outgoingRecords.push({ time, amount, rowIndex: i });
+          totalOutgoing += amount;
+          outgoingCount++;
+        }
+      }
+      
+      // 计算费率后的金额
+      const feeMultiplier = (100 - incomeFeeRate) / 100;
+      const actualIncome = totalIncome * feeMultiplier;
+      const actualOutgoing = totalOutgoing * (1 + outgoingFeeRate / 100);
+      const netProfit = actualIncome - actualOutgoing;
+      
+      // 生成结算报告
+      let message = `📊 ${today} 每日结算报告\n\n`;
+      
+      // 显示入款记录
+      message += `入款（${incomeCount}笔）：\n`;
+      if (incomeCount === 0) {
+        message += `无记录\n`;
+      } else {
+        for (const record of incomeRecords) {
+          const actualAmount = record.amount * feeMultiplier;
+          message += `${record.time} ${record.amount.toFixed(0)} *${feeMultiplier.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+        }
+      }
+      
+      // 显示出款记录
+      message += `\n下发（${outgoingCount}笔）：\n`;
+      if (outgoingCount === 0) {
+        message += `无记录\n`;
+      } else {
+        for (const record of outgoingRecords) {
+          const actualAmount = record.amount * (1 + outgoingFeeRate / 100);
+          message += `${record.time} ${record.amount.toFixed(0)} *${(1 + outgoingFeeRate / 100).toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+        }
+      }
+      
+      // 汇总信息
+      message += `\n总入款：${totalIncome.toFixed(0)}\n`;
+      message += `入款费率：${incomeFeeRate}%\n`;
+      message += `入款扣费：${actualIncome.toFixed(2)}\n`;
+      message += `总下发：${totalOutgoing.toFixed(2)}\n`;
+      message += `下发费率：${outgoingFeeRate}%\n`;
+      message += `净利润：${netProfit.toFixed(2)}\n`;
+      message += `\n✅ 今日账单已结算并归档`;
+      
+      // 标记今天的账单为"已结算"（不删除）
+      for (const record of incomeRecords) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `Deposits!H${record.rowIndex + 1}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [["已结算"]],
+          },
+        });
+      }
+      
+      for (const record of outgoingRecords) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `Withdrawals!H${record.rowIndex + 1}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [["已结算"]],
+          },
+        });
+      }
+      
+      logger?.info(`✅ [DailySettlement] 结算完成: 入款${incomeCount}条, 出款${outgoingCount}条`);
+      
+      return {
+        success: true,
+        message,
+        totalIncome,
+        totalOutgoing,
+        netProfit,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [DailySettlement] 结算失败", error);
+      return {
+        success: false,
+        message: `❌ 每日结算失败: ${error.message}`,
+        totalIncome: 0,
+        totalOutgoing: 0,
+        netProfit: 0,
       };
     }
   },
