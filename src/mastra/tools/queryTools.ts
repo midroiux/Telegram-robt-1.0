@@ -1,0 +1,537 @@
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
+import { google } from "googleapis";
+
+function getGoogleSheetsClient() {
+  const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || "{}");
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+
+  return google.sheets({ version: "v4", auth });
+}
+
+// ============= 账单查询工具 =============
+
+/**
+ * Tool: Show All Bills
+ * 显示群里所有人的账单
+ */
+export const showAllBills = createTool({
+  id: "show-all-bills",
+  description: "显示群组所有人的账单汇总",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+    totalIncome: z.number(),
+    totalOutgoing: z.number(),
+    netProfit: z.number(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [ShowAllBills] 显示所有账单", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = getGoogleSheetsClient();
+      
+      // 获取群组设置
+      const settingsResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "群组设置!A:H",
+      });
+      
+      const settingsRows = settingsResponse.data.values || [];
+      let exchangeRate = 7.2;
+      let feeRate = 5;
+      
+      for (let i = 1; i < settingsRows.length; i++) {
+        if (settingsRows[i][0] === context.groupId) {
+          exchangeRate = parseFloat(settingsRows[i][1] || "7.2");
+          feeRate = parseFloat(settingsRows[i][2] || "5");
+          break;
+        }
+      }
+      
+      // 获取入款记录
+      const incomeResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "入款记录!A:I",
+      });
+      
+      const incomeRows = incomeResponse.data.values || [];
+      let totalIncomeCNY = 0;
+      let totalIncomeUSDT = 0;
+      const userIncomes: { [key: string]: { cny: number; usdt: number } } = {};
+      
+      for (let i = 1; i < incomeRows.length; i++) {
+        if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
+          const username = incomeRows[i][4];
+          const amount = parseFloat(incomeRows[i][5]);
+          const currency = incomeRows[i][6];
+          
+          if (!userIncomes[username]) {
+            userIncomes[username] = { cny: 0, usdt: 0 };
+          }
+          
+          if (currency === "CNY") {
+            totalIncomeCNY += amount;
+            userIncomes[username].cny += amount;
+          } else {
+            totalIncomeUSDT += amount;
+            userIncomes[username].usdt += amount;
+          }
+        }
+      }
+      
+      // 获取下发记录
+      const outgoingResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "下发记录!A:I",
+      });
+      
+      const outgoingRows = outgoingResponse.data.values || [];
+      let totalOutgoingCNY = 0;
+      let totalOutgoingUSDT = 0;
+      const userOutgoings: { [key: string]: { cny: number; usdt: number } } = {};
+      
+      for (let i = 1; i < outgoingRows.length; i++) {
+        if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
+          const username = outgoingRows[i][4];
+          const amount = parseFloat(outgoingRows[i][5]);
+          const currency = outgoingRows[i][6];
+          
+          if (!userOutgoings[username]) {
+            userOutgoings[username] = { cny: 0, usdt: 0 };
+          }
+          
+          if (currency === "CNY") {
+            totalOutgoingCNY += amount;
+            userOutgoings[username].cny += amount;
+          } else {
+            totalOutgoingUSDT += amount;
+            userOutgoings[username].usdt += amount;
+          }
+        }
+      }
+      
+      // 计算总额(转换为CNY)
+      const totalIncome = totalIncomeCNY + (totalIncomeUSDT * exchangeRate);
+      const totalOutgoing = totalOutgoingCNY + (totalOutgoingUSDT * exchangeRate);
+      
+      // 应用费率
+      const actualIncome = totalIncome * (1 - feeRate / 100);
+      const actualOutgoing = totalOutgoing * (1 + feeRate / 100);
+      const netProfit = actualIncome - actualOutgoing;
+      
+      // 构建消息
+      let message = `📊 群组账单汇总\n\n`;
+      message += `💰 总入款:\n`;
+      message += `  CNY: ${totalIncomeCNY.toFixed(2)}\n`;
+      message += `  USDT: ${totalIncomeUSDT.toFixed(2)}\n\n`;
+      message += `💸 总下发:\n`;
+      message += `  CNY: ${totalOutgoingCNY.toFixed(2)}\n`;
+      message += `  USDT: ${totalOutgoingUSDT.toFixed(2)}\n\n`;
+      message += `📈 计算(汇率${exchangeRate}, 费率${feeRate}%):\n`;
+      message += `  总入款: ${totalIncome.toFixed(2)} CNY\n`;
+      message += `  实际入款: ${actualIncome.toFixed(2)} CNY\n`;
+      message += `  总下发: ${totalOutgoing.toFixed(2)} CNY\n`;
+      message += `  实际下发: ${actualOutgoing.toFixed(2)} CNY\n`;
+      message += `  净盈亏: ${netProfit.toFixed(2)} CNY`;
+      
+      logger?.info("✅ [ShowAllBills] 查询成功");
+      
+      return {
+        success: true,
+        message,
+        totalIncome,
+        totalOutgoing,
+        netProfit,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [ShowAllBills] 查询失败", error);
+      return {
+        success: false,
+        message: `❌ 查询失败: ${error.message}`,
+        totalIncome: 0,
+        totalOutgoing: 0,
+        netProfit: 0,
+      };
+    }
+  },
+});
+
+/**
+ * Tool: Show User Bills
+ * 显示个人账单 (/我命令)
+ */
+export const showUserBills = createTool({
+  id: "show-user-bills",
+  description: "显示指定用户的个人账单,命令: /我",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+    userId: z.string().describe("用户ID"),
+    username: z.string().describe("用户名"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [ShowUserBills] 显示个人账单", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = getGoogleSheetsClient();
+      
+      // 获取入款记录
+      const incomeResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "入款记录!A:I",
+      });
+      
+      const incomeRows = incomeResponse.data.values || [];
+      let incomeCNY = 0;
+      let incomeUSDT = 0;
+      const incomeRecords: string[] = [];
+      
+      for (let i = 1; i < incomeRows.length; i++) {
+        if (incomeRows[i][2] === context.groupId && 
+            incomeRows[i][3] === context.userId && 
+            incomeRows[i][7] === "正常") {
+          const amount = parseFloat(incomeRows[i][5]);
+          const currency = incomeRows[i][6];
+          const time = incomeRows[i][1];
+          
+          if (currency === "CNY") {
+            incomeCNY += amount;
+          } else {
+            incomeUSDT += amount;
+          }
+          
+          incomeRecords.push(`  ${time}: +${amount} ${currency}`);
+        }
+      }
+      
+      // 获取下发记录
+      const outgoingResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "下发记录!A:I",
+      });
+      
+      const outgoingRows = outgoingResponse.data.values || [];
+      let outgoingCNY = 0;
+      let outgoingUSDT = 0;
+      const outgoingRecords: string[] = [];
+      
+      for (let i = 1; i < outgoingRows.length; i++) {
+        if (outgoingRows[i][2] === context.groupId && 
+            outgoingRows[i][3] === context.userId && 
+            outgoingRows[i][7] === "正常") {
+          const amount = parseFloat(outgoingRows[i][5]);
+          const currency = outgoingRows[i][6];
+          const time = outgoingRows[i][1];
+          
+          if (currency === "CNY") {
+            outgoingCNY += amount;
+          } else {
+            outgoingUSDT += amount;
+          }
+          
+          outgoingRecords.push(`  ${time}: -${amount} ${currency}`);
+        }
+      }
+      
+      let message = `📊 ${context.username} 的账单\n\n`;
+      message += `💰 入款记录:\n`;
+      if (incomeRecords.length > 0) {
+        message += incomeRecords.slice(-5).join('\n') + '\n';
+      }
+      message += `  总计: CNY ${incomeCNY.toFixed(2)} | USDT ${incomeUSDT.toFixed(2)}\n\n`;
+      message += `💸 下发记录:\n`;
+      if (outgoingRecords.length > 0) {
+        message += outgoingRecords.slice(-5).join('\n') + '\n';
+      }
+      message += `  总计: CNY ${outgoingCNY.toFixed(2)} | USDT ${outgoingUSDT.toFixed(2)}`;
+      
+      logger?.info("✅ [ShowUserBills] 查询成功");
+      
+      return {
+        success: true,
+        message,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [ShowUserBills] 查询失败", error);
+      return {
+        success: false,
+        message: `❌ 查询失败: ${error.message}`,
+      };
+    }
+  },
+});
+
+/**
+ * Tool: Show Detailed Records
+ * 显示单笔明细 (+命令)
+ */
+export const showDetailedRecords = createTool({
+  id: "show-detailed-records",
+  description: "显示所有单笔交易明细,命令: +",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+    limit: z.number().default(20).describe("显示最近多少条记录"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [ShowDetailedRecords] 显示明细", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = getGoogleSheetsClient();
+      
+      const records: Array<{time: string, type: string, user: string, amount: number, currency: string}> = [];
+      
+      // 获取入款记录
+      const incomeResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "入款记录!A:I",
+      });
+      
+      const incomeRows = incomeResponse.data.values || [];
+      for (let i = 1; i < incomeRows.length; i++) {
+        if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
+          records.push({
+            time: incomeRows[i][1],
+            type: "入款",
+            user: incomeRows[i][4],
+            amount: parseFloat(incomeRows[i][5]),
+            currency: incomeRows[i][6],
+          });
+        }
+      }
+      
+      // 获取下发记录
+      const outgoingResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "下发记录!A:I",
+      });
+      
+      const outgoingRows = outgoingResponse.data.values || [];
+      for (let i = 1; i < outgoingRows.length; i++) {
+        if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
+          records.push({
+            time: outgoingRows[i][1],
+            type: "下发",
+            user: outgoingRows[i][4],
+            amount: parseFloat(outgoingRows[i][5]),
+            currency: outgoingRows[i][6],
+          });
+        }
+      }
+      
+      // 按时间排序
+      records.sort((a, b) => b.time.localeCompare(a.time));
+      
+      // 取最近的记录
+      const recentRecords = records.slice(0, context.limit);
+      
+      let message = `📋 交易明细 (最近${recentRecords.length}条)\n\n`;
+      
+      recentRecords.forEach((record, index) => {
+        const sign = record.type === "入款" ? "+" : "-";
+        message += `${index + 1}. [${record.type}] ${record.user}\n`;
+        message += `   ${sign}${record.amount} ${record.currency}\n`;
+        message += `   ${record.time}\n\n`;
+      });
+      
+      logger?.info("✅ [ShowDetailedRecords] 查询成功");
+      
+      return {
+        success: true,
+        message,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [ShowDetailedRecords] 查询失败", error);
+      return {
+        success: false,
+        message: `❌ 查询失败: ${error.message}`,
+      };
+    }
+  },
+});
+
+/**
+ * Tool: Calculate Expression
+ * 数学计算 (支持+-×÷)
+ */
+export const calculateExpression = createTool({
+  id: "calculate-expression",
+  description: "计算数学表达式,支持加减乘除",
+  
+  inputSchema: z.object({
+    expression: z.string().describe("数学表达式,如: 100+200*3"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    result: z.number().optional(),
+    message: z.string(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [CalculateExpression] 计算表达式", context);
+    
+    try {
+      // 安全地计算表达式
+      const sanitized = context.expression.replace(/[^0-9+\-*/().×÷]/g, '');
+      const normalized = sanitized.replace(/×/g, '*').replace(/÷/g, '/');
+      
+      // eslint-disable-next-line no-eval
+      const result = eval(normalized);
+      
+      logger?.info("✅ [CalculateExpression] 计算成功", result);
+      
+      return {
+        success: true,
+        result,
+        message: `🔢 ${context.expression} = ${result}`,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [CalculateExpression] 计算失败", error);
+      return {
+        success: false,
+        message: `❌ 计算失败: 表达式格式错误`,
+      };
+    }
+  },
+});
+
+/**
+ * Tool: Set Daily Cutoff Time
+ * 设置日切时间 (日切#6)
+ */
+export const setDailyCutoffTime = createTool({
+  id: "set-daily-cutoff-time",
+  description: "设置每日账单刷新时间,格式: 日切#6 (6点刷新), 日切#-1 (永不刷新)",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+    hour: z.number().describe("小时数,0-23代表具体时间,-1代表永不刷新"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [SetDailyCutoffTime] 设置日切时间", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = getGoogleSheetsClient();
+      
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "群组设置!A:H",
+      });
+      
+      const rows = response.data.values || [];
+      let foundIndex = -1;
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === context.groupId) {
+          foundIndex = i;
+          break;
+        }
+      }
+      
+      if (foundIndex !== -1) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `群组设置!D${foundIndex + 1}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[context.hour]],
+          },
+        });
+      } else {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: "群组设置!A:H",
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[
+              context.groupId,
+              7.2,
+              5,
+              context.hour,
+              "否",
+              "否",
+              "",
+              "否",
+            ]],
+          },
+        });
+      }
+      
+      logger?.info("✅ [SetDailyCutoffTime] 设置成功");
+      
+      let message;
+      if (context.hour === -1) {
+        message = "✅ 已设置为永不自动刷新,只能手动删除账单";
+      } else if (context.hour === 0) {
+        message = "✅ 已设置日切时间为 0点 (晚上12点)";
+      } else {
+        message = `✅ 已设置日切时间为 ${context.hour}点`;
+      }
+      
+      return {
+        success: true,
+        message,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [SetDailyCutoffTime] 设置失败", error);
+      return {
+        success: false,
+        message: `❌ 设置失败: ${error.message}`,
+      };
+    }
+  },
+});
