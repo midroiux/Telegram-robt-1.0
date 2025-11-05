@@ -26,12 +26,14 @@ const processAccountingMessage = createStep({
     userName: z.string().describe("Telegram 用户名"),
     message: z.string().describe("用户发送的消息"),
     userId: z.string().describe("用户 ID"),
+    chatId: z.number().describe("Telegram chat ID"),
   }),
   
   outputSchema: z.object({
     response: z.string(),
     success: z.boolean(),
     userName: z.string(),
+    chatId: z.number(),
   }),
   
   execute: async ({ inputData, mastra }) => {
@@ -78,6 +80,7 @@ const processAccountingMessage = createStep({
           response: `✅ 入款成功: ${currency === "USD" ? "$" : "฿"}${amount}\n\n${billsResult.message}`,
           success: true,
           userName: inputData.userName,
+          chatId: inputData.chatId,
         };
       }
       
@@ -112,6 +115,7 @@ const processAccountingMessage = createStep({
           response: `✅ 出款成功: ${currency === "USD" ? "$" : "฿"}${amount}\n\n${billsResult.message}`,
           success: true,
           userName: inputData.userName,
+          chatId: inputData.chatId,
         };
       }
       
@@ -128,6 +132,7 @@ const processAccountingMessage = createStep({
           response: billsResult.message,
           success: true,
           userName: inputData.userName,
+          chatId: inputData.chatId,
         };
       }
       
@@ -144,6 +149,7 @@ const processAccountingMessage = createStep({
           response: `📊 结算报告：\n\n${billsResult.message}`,
           success: true,
           userName: inputData.userName,
+          chatId: inputData.chatId,
         };
       }
       
@@ -160,6 +166,7 @@ const processAccountingMessage = createStep({
           response: deleteResult.message,
           success: true,
           userName: inputData.userName,
+          chatId: inputData.chatId,
         };
       }
       
@@ -169,6 +176,7 @@ const processAccountingMessage = createStep({
         response: "命令格式：\n+数字 (入款)\n-数字 (出款)\n总账 (查询)\n结算 (完整账单)\n删除所有账单",
         success: false,
         userName: inputData.userName,
+        chatId: inputData.chatId,
       };
       
     } catch (error: any) {
@@ -180,6 +188,7 @@ const processAccountingMessage = createStep({
         response: `❌ 处理失败: ${error.message}`,
         success: false,
         userName: inputData.userName,
+        chatId: inputData.chatId,
       };
     }
   },
@@ -197,6 +206,7 @@ const sendTelegramResponse = createStep({
     response: z.string(),
     success: z.boolean(),
     userName: z.string(),
+    chatId: z.number(),
   }),
   
   outputSchema: z.object({
@@ -206,20 +216,59 @@ const sendTelegramResponse = createStep({
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info("📤 [SendTelegramResponse] 准备发送响应", {
+    logger?.info("📤 [SendTelegramResponse] 开始发送Telegram消息", {
       userName: inputData.userName,
+      chatId: inputData.chatId,
       responseLength: inputData.response.length,
     });
     
-    // 注意: Telegram 响应会通过返回值自动发送
-    // 这一步主要用于日志记录和格式化
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
     
-    logger?.info("✅ [SendTelegramResponse] 响应已准备完成");
-    
-    return {
-      sent: true,
-      message: inputData.response,
-    };
+    if (!botToken) {
+      logger?.error("❌ TELEGRAM_BOT_TOKEN 未设置");
+      return {
+        sent: false,
+        message: inputData.response,
+      };
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${botToken}/sendMessage`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id: inputData.chatId,
+            text: inputData.response,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger?.error("❌ [SendTelegramResponse] 发送失败", { error: errorText });
+        return {
+          sent: false,
+          message: inputData.response,
+        };
+      }
+
+      logger?.info("✅ [SendTelegramResponse] 消息发送成功");
+      
+      return {
+        sent: true,
+        message: inputData.response,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [SendTelegramResponse] 发送异常", { error: error.message });
+      return {
+        sent: false,
+        message: inputData.response,
+      };
+    }
   },
 });
 
@@ -234,6 +283,7 @@ export const accountingWorkflow = createWorkflow({
     userName: z.string(),
     message: z.string(),
     userId: z.string(),
+    chatId: z.number(),
   }),
   
   outputSchema: z.object({

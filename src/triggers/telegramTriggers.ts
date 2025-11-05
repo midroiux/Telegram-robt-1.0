@@ -89,53 +89,30 @@ export const accountingBotTrigger = registerTelegramTrigger({
     });
 
     try {
-      // 执行记账 workflow
+      // 🚀 Fire-and-forget: 启动workflow但不等待结果
+      // Workflow会自己发送Telegram消息
       const run = await accountingWorkflow.createRunAsync();
-      const result = await run.start({
+      
+      // 不等待workflow完成，立即返回
+      run.start({
         inputData: {
           userName: triggerInfo.params.userName,
           message: triggerInfo.params.message,
           userId: triggerInfo.params.userId,
+          chatId: triggerInfo.params.chatId,
         },
-      });
-
-      logger?.info("✅ [AccountingBot] Workflow 执行完成", {
-        status: result.status,
-      });
-
-      // 发送响应回 Telegram（fire-and-forget，不等待）
-      if (result.status === "success") {
-        const output = result.result;
-        if (output?.message && triggerInfo.params.chatId) {
-          sendTelegramMessage(
-            triggerInfo.params.chatId,
-            output.message
-          ).catch(err => logger?.error("发送消息失败", err));
-        }
-      } else {
-        logger?.error("❌ [AccountingBot] Workflow 失败", {
-          error: result.status === "failed" ? result.error : "Unknown error",
+      }).catch((error) => {
+        logger?.error("❌ [AccountingBot] Workflow 启动失败", {
+          error: error.message,
         });
-        
-        if (triggerInfo.params.chatId) {
-          sendTelegramMessage(
-            triggerInfo.params.chatId,
-            "抱歉,处理您的请求时出现问题。"
-          ).catch(err => logger?.error("发送消息失败", err));
-        }
-      }
+      });
+
+      logger?.info("✅ [AccountingBot] Workflow 已异步启动，不等待结果");
+      
     } catch (error: any) {
-      logger?.error("❌ [AccountingBot] Workflow 执行失败", {
+      logger?.error("❌ [AccountingBot] 创建 Workflow 失败", {
         error: error.message,
       });
-
-      // 发送错误消息给用户（fire-and-forget）
-      if (triggerInfo.params.chatId) {
-        sendTelegramMessage(
-          triggerInfo.params.chatId,
-          `抱歉,处理您的请求时出现错误。请稍后再试。`
-        ).catch(err => logger?.error("发送消息失败", err));
-      }
     }
   },
 });
