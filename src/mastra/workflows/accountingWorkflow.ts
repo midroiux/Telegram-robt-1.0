@@ -451,10 +451,10 @@ const processAccountingMessage = createStep({
         };
       }
       
-      // 未匹配到命令
-      logger?.info("❓ [FastMatch] 未识别的命令");
+      // 未匹配到命令 - 不再自动发送命令列表
+      logger?.info("❓ [FastMatch] 未识别的命令，忽略");
       return {
-        response: "📋 命令列表：\n\n💰 记账：\n+数字 (入款)\n-数字 (出款)\n\n📊 查询：\n总账 (查看账单)\n日结算 (今日结算)\n\n⚙️ 设置：\n入款费率X (设置费率)\n下发费率X (设置费率)\n\n🔑 权限管理：\n我的ID (查询ID)\n添加权限 (回复消息)\n移除权限 (回复消息)\n操作人列表",
+        response: "",
         success: false,
         userName: inputData.userName,
         chatId: inputData.chatId,
@@ -502,6 +502,15 @@ const sendTelegramResponse = createStep({
       chatId: inputData.chatId,
       responseLength: inputData.response.length,
     });
+    
+    // 如果response为空，跳过发送（未识别的命令）
+    if (!inputData.response || inputData.response.trim() === "") {
+      logger?.info("⏭️ [SendTelegramResponse] 响应为空，跳过发送");
+      return {
+        sent: false,
+        message: "",
+      };
+    }
     
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     

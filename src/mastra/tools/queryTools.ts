@@ -83,7 +83,10 @@ export const showAllBills = createTool({
           const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
           const time = timeMatch ? timeMatch[1] : timestamp;
           
-          incomeRecords.push({ time, amount });
+          // +0 不计入笔数统计，但仍计入总额（虽然是0）
+          if (amount !== 0) {
+            incomeRecords.push({ time, amount });
+          }
           totalIncome += amount;
         }
       }
@@ -107,7 +110,10 @@ export const showAllBills = createTool({
           const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
           const time = timeMatch ? timeMatch[1] : timestamp;
           
-          outgoingRecords.push({ time, amount });
+          // -0 不计入笔数统计，但仍计入总额（虽然是0）
+          if (amount !== 0) {
+            outgoingRecords.push({ time, amount });
+          }
           totalOutgoing += amount;
         }
       }
