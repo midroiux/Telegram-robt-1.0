@@ -276,32 +276,43 @@ const processAccountingMessage = createStep({
         userName: inputData.userName,
       });
       
-      const permissionResult = await checkUserPermission.execute({
-        context: {
-          groupId,
-          userId: inputData.userId,
-        },
-        runtimeContext,
-      });
+      // 🔑 优先检查是否是Telegram群组管理员（管理员自动拥有所有权限）
+      const isAdmin = await isGroupAdmin(inputData.chatId, inputData.userId, logger);
       
-      if (!permissionResult.hasPermission) {
-        logger?.info("❌ [Permission] 无权限", {
+      if (isAdmin) {
+        logger?.info("✅ [Permission] 群组管理员，自动通过权限验证", {
+          userId: inputData.userId,
+          userName: inputData.userName,
+        });
+      } else {
+        // 非管理员，检查操作人权限
+        const permissionResult = await checkUserPermission.execute({
+          context: {
+            groupId,
+            userId: inputData.userId,
+          },
+          runtimeContext,
+        });
+        
+        if (!permissionResult.hasPermission) {
+          logger?.info("❌ [Permission] 无权限", {
+            userId: inputData.userId,
+            reason: permissionResult.reason,
+          });
+          
+          return {
+            response: `❌ 您没有权限使用此机器人\n原因: ${permissionResult.reason}\n\n💡 发送 "我的ID" 查看您的用户ID，然后联系管理员添加权限`,
+            success: false,
+            userName: inputData.userName,
+            chatId: inputData.chatId,
+          };
+        }
+        
+        logger?.info("✅ [Permission] 权限验证通过（操作人）", {
           userId: inputData.userId,
           reason: permissionResult.reason,
         });
-        
-        return {
-          response: `❌ 您没有权限使用此机器人\n原因: ${permissionResult.reason}\n\n💡 发送 "我的ID" 查看您的用户ID，然后联系管理员添加权限`,
-          success: false,
-          userName: inputData.userName,
-          chatId: inputData.chatId,
-        };
       }
-      
-      logger?.info("✅ [Permission] 权限验证通过", {
-        userId: inputData.userId,
-        reason: permissionResult.reason,
-      });
       
       // 匹配 +数字 (入款)
       const incomeMatch = msg.match(/^\+(\d+(?:\.\d+)?)(\$)?$/);
