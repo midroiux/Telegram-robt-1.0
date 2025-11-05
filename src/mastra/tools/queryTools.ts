@@ -65,24 +65,24 @@ export const showAllBills = createTool({
       const incomeRows = incomeResponse.data.values || [];
       let totalIncomeTHB = 0;
       let totalIncomeUSD = 0;
-      const userIncomes: { [key: string]: { thb: number; usd: number } } = {};
+      const incomeRecords: Array<{time: string, amount: number, currency: string}> = [];
       
       for (let i = 1; i < incomeRows.length; i++) {
         if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
-          const username = incomeRows[i][4];
+          const timestamp = incomeRows[i][1] || "";
           const amount = parseFloat(incomeRows[i][5]);
           const currency = incomeRows[i][6];
           
-          if (!userIncomes[username]) {
-            userIncomes[username] = { thb: 0, usd: 0 };
-          }
+          // 提取时间部分 (HH:MM:SS)
+          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
+          const time = timeMatch ? timeMatch[1] : timestamp;
+          
+          incomeRecords.push({ time, amount, currency });
           
           if (currency === "THB") {
             totalIncomeTHB += amount;
-            userIncomes[username].thb += amount;
           } else {
             totalIncomeUSD += amount;
-            userIncomes[username].usd += amount;
           }
         }
       }
@@ -96,24 +96,24 @@ export const showAllBills = createTool({
       const outgoingRows = outgoingResponse.data.values || [];
       let totalOutgoingTHB = 0;
       let totalOutgoingUSD = 0;
-      const userOutgoings: { [key: string]: { thb: number; usd: number } } = {};
+      const outgoingRecords: Array<{time: string, amount: number, currency: string}> = [];
       
       for (let i = 1; i < outgoingRows.length; i++) {
         if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
-          const username = outgoingRows[i][4];
+          const timestamp = outgoingRows[i][1] || "";
           const amount = parseFloat(outgoingRows[i][5]);
           const currency = outgoingRows[i][6];
           
-          if (!userOutgoings[username]) {
-            userOutgoings[username] = { thb: 0, usd: 0 };
-          }
+          // 提取时间部分 (HH:MM:SS)
+          const timeMatch = timestamp.match(/(\d{2}:\d{2}:\d{2})/);
+          const time = timeMatch ? timeMatch[1] : timestamp;
+          
+          outgoingRecords.push({ time, amount, currency });
           
           if (currency === "THB") {
             totalOutgoingTHB += amount;
-            userOutgoings[username].thb += amount;
           } else {
             totalOutgoingUSD += amount;
-            userOutgoings[username].usd += amount;
           }
         }
       }
@@ -125,22 +125,44 @@ export const showAllBills = createTool({
       // 应用费率（入款和下发使用不同的费率）
       const actualIncome = totalIncome * (1 - incomeFeeRate / 100);
       const actualOutgoing = totalOutgoing * (1 + outgoingFeeRate / 100);
-      const netProfit = actualIncome - actualOutgoing;
+      const balance = actualIncome - actualOutgoing;
       
-      // 构建消息
-      let message = `📊 群组账单汇总\n\n`;
-      message += `💰 总入款:\n`;
-      message += `  ฿${totalIncomeTHB.toFixed(2)}\n`;
-      message += `  $${totalIncomeUSD.toFixed(2)}\n\n`;
-      message += `💸 总下发:\n`;
-      message += `  ฿${totalOutgoingTHB.toFixed(2)}\n`;
-      message += `  $${totalOutgoingUSD.toFixed(2)}\n\n`;
-      message += `📈 计算(汇率${exchangeRate}, 入款费率${incomeFeeRate}%, 下发费率${outgoingFeeRate}%):\n`;
-      message += `  总入款: ฿${totalIncome.toFixed(2)}\n`;
-      message += `  实际入款: ฿${actualIncome.toFixed(2)}\n`;
-      message += `  总下发: ฿${totalOutgoing.toFixed(2)}\n`;
-      message += `  实际下发: ฿${actualOutgoing.toFixed(2)}\n`;
-      message += `  净盈亏: ฿${netProfit.toFixed(2)}`;
+      // 构建消息 - 按照用户提供的模板格式
+      let message = `入款(฿):\n`;
+      
+      // 显示入款记录
+      if (incomeRecords.length === 0) {
+        message += `0\n`;
+      } else {
+        for (const record of incomeRecords) {
+          const amountInUSD = record.amount / exchangeRate;
+          message += `${record.time} ${record.amount.toFixed(2)} / ${exchangeRate.toFixed(2)}= ${amountInUSD.toFixed(2)}U\n`;
+        }
+      }
+      
+      message += `\n下发(฿):`;
+      
+      // 显示下发记录
+      if (outgoingRecords.length === 0) {
+        message += `0\n`;
+      } else {
+        message += `\n`;
+        for (const record of outgoingRecords) {
+          const amountInUSD = record.amount / exchangeRate;
+          message += `${record.time} ${record.amount.toFixed(2)} / ${exchangeRate.toFixed(2)}= ${amountInUSD.toFixed(2)}U\n`;
+        }
+      }
+      
+      // 总入款和费率
+      message += `\n总入款: ${totalIncome.toFixed(2)}\n`;
+      message += `入款费率: ${incomeFeeRate.toFixed(1)}%\n`;
+      message += `下发费率: ${outgoingFeeRate.toFixed(1)}%\n`;
+      
+      // 汇率和计算结果
+      message += `\nUSDT汇率: ${exchangeRate.toFixed(2)}\n`;
+      message += `应下发: ${actualIncome.toFixed(2)}   | ${(actualIncome / exchangeRate).toFixed(2)} USDT\n`;
+      message += `总下发: ${actualOutgoing.toFixed(4)} | ${(actualOutgoing / exchangeRate).toFixed(4)} USDT\n`;
+      message += `余: ${balance.toFixed(2)} | ${(balance / exchangeRate).toFixed(2)} USDT`;
       
       logger?.info("✅ [ShowAllBills] 查询成功");
       
@@ -149,7 +171,7 @@ export const showAllBills = createTool({
         message,
         totalIncome,
         totalOutgoing,
-        netProfit,
+        netProfit: balance,
       };
     } catch (error: any) {
       logger?.error("❌ [ShowAllBills] 查询失败", error);
