@@ -37,6 +37,7 @@ import {
   getGroupSettings,
   showCurrentRates,
   setCutoffTime,
+  setLanguage,
 } from "./tools/rateTools";
 
 // 账单查询工具
@@ -122,6 +123,7 @@ export const mastra = new Mastra({
         getGroupSettings,
         showCurrentRates,
         setCutoffTime,
+        setLanguage,
         // 账单查询
         showAllBills,
         showUserBills,

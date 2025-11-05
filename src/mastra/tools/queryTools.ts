@@ -39,19 +39,21 @@ export const showAllBills = createTool({
       // 获取群组设置
       const settingsResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:I",
+        range: "GroupSettings!A:J",
       });
       
       const settingsRows = settingsResponse.data.values || [];
       let exchangeRate = 35; // THB/USD 默认汇率
       let incomeFeeRate = 5;
       let outgoingFeeRate = 0;
+      let language = "中文"; // 默认语言
       
       for (let i = 1; i < settingsRows.length; i++) {
         if (settingsRows[i][0] === context.groupId) {
           exchangeRate = parseFloat(settingsRows[i][1] || "35");
           incomeFeeRate = parseFloat(settingsRows[i][2] || "5");
           outgoingFeeRate = parseFloat(settingsRows[i][3] || "0");
+          language = settingsRows[i][9] || "中文";
           break;
         }
       }
@@ -127,9 +129,25 @@ export const showAllBills = createTool({
       const actualOutgoing = totalOutgoing * (1 + outgoingFeeRate / 100);
       const balance = actualIncome - actualOutgoing;
       
+      // 语言文本配置
+      const isThai = language === "泰语";
+      const texts = {
+        title: "TOM记账机器人测试",
+        income: isThai ? "ฝาก(฿):" : "入款(฿):",
+        outgoing: isThai ? "ถอน(฿):" : "下发(฿):",
+        totalIncome: isThai ? "ฝากทั้งหมด:" : "总入款:",
+        incomeFeeRate: isThai ? "อัตราค่าธรรมเนียมฝาก:" : "入款费率:",
+        outgoingFeeRate: isThai ? "อัตราค่าธรรมเนียมถอน:" : "下发费率:",
+        usdtRate: isThai ? "อัตรา USDT:" : "USDT汇率:",
+        shouldPay: isThai ? "ควรจ่าย:" : "应下发:",
+        totalPaid: isThai ? "ถอนทั้งหมด:" : "总下发:",
+        balance: isThai ? "คงเหลือ:" : "余:",
+        languageSwitch: isThai ? "切换中文" : "切换泰语",
+      };
+      
       // 构建消息 - 按照用户提供的模板格式
-      let message = `TOM记账机器人测试\n\n`;
-      message += `入款(฿):\n`;
+      let message = `${texts.title} (${texts.languageSwitch})\n\n`;
+      message += `${texts.income}\n`;
       
       // 显示入款记录
       if (incomeRecords.length === 0) {
@@ -141,7 +159,7 @@ export const showAllBills = createTool({
         }
       }
       
-      message += `\n下发(฿):`;
+      message += `\n${texts.outgoing}`;
       
       // 显示下发记录
       if (outgoingRecords.length === 0) {
@@ -155,15 +173,15 @@ export const showAllBills = createTool({
       }
       
       // 总入款和费率
-      message += `\n总入款: ${totalIncome.toFixed(2)}\n`;
-      message += `入款费率: ${incomeFeeRate.toFixed(1)}%\n`;
-      message += `下发费率: ${outgoingFeeRate.toFixed(1)}%\n`;
+      message += `\n${texts.totalIncome} ${totalIncome.toFixed(2)}\n`;
+      message += `${texts.incomeFeeRate} ${incomeFeeRate.toFixed(1)}%\n`;
+      message += `${texts.outgoingFeeRate} ${outgoingFeeRate.toFixed(1)}%\n`;
       
       // 汇率和计算结果
-      message += `\nUSDT汇率: ${exchangeRate.toFixed(2)}\n`;
-      message += `应下发: ${actualIncome.toFixed(2)}   | ${(actualIncome / exchangeRate).toFixed(2)} USDT\n`;
-      message += `总下发: ${actualOutgoing.toFixed(4)} | ${(actualOutgoing / exchangeRate).toFixed(4)} USDT\n`;
-      message += `余: ${balance.toFixed(2)} | ${(balance / exchangeRate).toFixed(2)} USDT`;
+      message += `\n${texts.usdtRate} ${exchangeRate.toFixed(2)}\n`;
+      message += `${texts.shouldPay} ${actualIncome.toFixed(2)}   | ${(actualIncome / exchangeRate).toFixed(2)} USDT\n`;
+      message += `${texts.totalPaid} ${actualOutgoing.toFixed(4)} | ${(actualOutgoing / exchangeRate).toFixed(4)} USDT\n`;
+      message += `${texts.balance} ${balance.toFixed(2)} | ${(balance / exchangeRate).toFixed(2)} USDT`;
       
       logger?.info("✅ [ShowAllBills] 查询成功");
       

@@ -22,6 +22,7 @@ import {
   getGroupSettings,
   showCurrentRates,
   setCutoffTime,
+  setLanguage,
 } from "../tools/rateTools";
 import {
   showAllBills,
@@ -106,7 +107,17 @@ export const accountingAgent = new Agent({
 1. 使用 showAllBills, showUserBills, showDetailedRecords
 2. 返回格式化的账单信息
 
-### 6. 日切设置
+### 6. 语言切换
+**命令格式:**
+- \`切换泰语\` 或 \`泰语\` = 将账单显示切换为泰语
+- \`切换中文\` 或 \`中文\` = 将账单显示切换为中文
+
+**操作流程:**
+1. 识别语言切换请求
+2. 使用 setLanguage 工具设置语言为"中文"或"泰语"
+3. 回复确认消息
+
+### 7. 日切设置
 **命令格式:**
 - \`日切#6\` 或 \`设置日切6点\` = 设置每日结算时间为早上6点
 - \`日切#0\` = 设置为午夜0点
@@ -116,7 +127,7 @@ export const accountingAgent = new Agent({
 2. 使用 setCutoffTime 工具
 3. 回复确认消息
 
-### 7. 操作人管理
+### 8. 操作人管理
 **命令格式:**
 - \`添加操作人 @username\` = 添加有权限的操作人
 - \`删除操作人 @username\` = 删除操作人权限
@@ -223,6 +234,7 @@ export const accountingAgent = new Agent({
     getGroupSettings,
     showCurrentRates,
     setCutoffTime,
+    setLanguage,
     // 账单查询
     showAllBills,
     showUserBills,

@@ -36,7 +36,7 @@ export const setExchangeRate = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:I",
+        range: "GroupSettings!A:J",
       });
       
       const rows = response.data.values || [];
@@ -62,7 +62,7 @@ export const setExchangeRate = createTool({
         // 创建新设置
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "GroupSettings!A:I",
+          range: "GroupSettings!A:J",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -75,6 +75,7 @@ export const setExchangeRate = createTool({
               "否", // 默认不使用实时汇率
               "",
               "否",
+              "中文", // 默认语言
             ]],
           },
         });
@@ -128,7 +129,7 @@ export const setIncomeFeeRate = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:I",
+        range: "GroupSettings!A:J",
       });
       
       const rows = response.data.values || [];
@@ -153,7 +154,7 @@ export const setIncomeFeeRate = createTool({
       } else {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "GroupSettings!A:I",
+          range: "GroupSettings!A:J",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -219,7 +220,7 @@ export const setOutgoingFeeRate = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:I",
+        range: "GroupSettings!A:J",
       });
       
       const rows = response.data.values || [];
@@ -244,7 +245,7 @@ export const setOutgoingFeeRate = createTool({
       } else {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "GroupSettings!A:I",
+          range: "GroupSettings!A:J",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -315,7 +316,7 @@ export const getGroupSettings = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:I",
+        range: "GroupSettings!A:J",
       });
       
       const rows = response.data.values || [];
@@ -406,7 +407,7 @@ export const convertTHBtoUSD = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:I",
+        range: "GroupSettings!A:J",
       });
       
       const rows = response.data.values || [];
@@ -656,7 +657,7 @@ export const showCurrentRates = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "GroupSettings!A:I",
+        range: "GroupSettings!A:J",
       });
       
       const rows = response.data.values || [];
@@ -692,6 +693,103 @@ export const showCurrentRates = createTool({
       return {
         success: false,
         message: `❌ 显示失败: ${error.message}`,
+      };
+    }
+  },
+});
+
+/**
+ * Tool: Set Language
+ * 设置账单显示语言
+ */
+export const setLanguage = createTool({
+  id: "set-language",
+  description: "设置账单显示语言,支持中文和泰语,命令: 切换泰语 或 切换中文",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+    language: z.enum(["中文", "泰语"]).describe("语言选择: 中文 或 泰语"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [SetLanguage] 设置语言", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = await getUncachableGoogleSheetClient();
+      
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "GroupSettings!A:J",
+      });
+      
+      const rows = response.data.values || [];
+      let foundIndex = -1;
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === context.groupId) {
+          foundIndex = i;
+          break;
+        }
+      }
+      
+      if (foundIndex !== -1) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `GroupSettings!J${foundIndex + 1}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[context.language]],
+          },
+        });
+      } else {
+        // 创建新设置
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: "GroupSettings!A:J",
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[
+              context.groupId,
+              35, // 默认汇率
+              5, // 默认入款费率
+              0, // 默认下发费率
+              6, // 默认日切时间
+              "否", // 默认不是所有人
+              "否", // 默认不使用实时汇率
+              "",
+              "否",
+              context.language,
+            ]],
+          },
+        });
+      }
+      
+      logger?.info("✅ [SetLanguage] 语言设置成功");
+      
+      const confirmMessage = context.language === "泰语" 
+        ? "✅ ตั้งค่าภาษาไทยเรียบร้อยแล้ว" 
+        : "✅ 已切换为中文";
+      
+      return {
+        success: true,
+        message: confirmMessage,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [SetLanguage] 设置失败", error);
+      return {
+        success: false,
+        message: `❌ 设置失败: ${error.message}`,
       };
     }
   },
