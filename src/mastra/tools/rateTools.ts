@@ -448,6 +448,98 @@ export const setRealtimeRateMode = createTool({
 });
 
 /**
+ * Tool: Set Cutoff Time
+ * 设置日切时间
+ */
+export const setCutoffTime = createTool({
+  id: "set-cutoff-time",
+  description: "设置每日结算时间(日切时间),格式: 日切#6 表示早上6点",
+  
+  inputSchema: z.object({
+    groupId: z.string().describe("群组ID"),
+    hour: z.number().min(0).max(23).describe("日切时间(小时,0-23)"),
+  }),
+  
+  outputSchema: z.object({
+    success: z.boolean(),
+    message: z.string(),
+  }),
+  
+  execute: async ({ context, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info("🔧 [SetCutoffTime] 设置日切时间", context);
+    
+    try {
+      const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+      if (!spreadsheetId) {
+        throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+      }
+      
+      const sheets = getGoogleSheetsClient();
+      
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "群组设置!A:H",
+      });
+      
+      const rows = response.data.values || [];
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === context.groupId) {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `群组设置!D${i + 1}`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: {
+              values: [[context.hour]],
+            },
+          });
+          
+          logger?.info("✅ [SetCutoffTime] 设置成功");
+          
+          return {
+            success: true,
+            message: `✅ 日切时间已设置为: ${context.hour}:00`,
+          };
+        }
+      }
+      
+      // 如果群组不存在,创建新记录
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: "群组设置!A:H",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[
+            context.groupId,
+            35,
+            5,
+            context.hour,
+            "否",
+            "否",
+            "",
+            "否",
+          ]],
+        },
+      });
+      
+      logger?.info("✅ [SetCutoffTime] 新建群组并设置成功");
+      
+      return {
+        success: true,
+        message: `✅ 日切时间已设置为: ${context.hour}:00`,
+      };
+    } catch (error: any) {
+      logger?.error("❌ [SetCutoffTime] 设置失败", error);
+      return {
+        success: false,
+        message: `❌ 设置失败: ${error.message}`,
+      };
+    }
+  },
+});
+
+/**
  * Tool: Show Current Rates
  * 显示当前汇率情况 (z0命令)
  */

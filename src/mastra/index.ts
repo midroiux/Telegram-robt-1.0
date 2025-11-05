@@ -11,19 +11,40 @@ import { sharedPostgresStorage } from "./storage";
 import { inngest, inngestServe } from "./inngest";
 import { accountingWorkflow } from "./workflows/accountingWorkflow";
 import { accountingAgent } from "./agents/accountingAgent";
+
+// 操作人管理工具
+import {
+  addOperator,
+  removeOperator,
+  checkUserPermission,
+  listOperators,
+} from "./tools/groupAccountingTools";
+
+// 交易记录工具
 import {
   addIncomeRecord,
-  addExpenseRecord,
-  deleteRecord,
-  getDailySummary,
-  updateSettings,
-  getSettings,
-} from "./tools/googleSheetsTool";
+  addOutgoingRecord,
+  revokeLastIncome,
+  revokeLastOutgoing,
+} from "./tools/transactionTools";
+
+// 汇率费率工具
 import {
-  getExchangeRate,
-  convertCurrency,
-  getMultipleExchangeRates,
-} from "./tools/exchangeRateTool";
+  setExchangeRate,
+  setFeeRate,
+  convertTHBtoUSD,
+  getGroupSettings,
+  showCurrentRates,
+  setCutoffTime,
+} from "./tools/rateTools";
+
+// 账单查询工具
+import {
+  showAllBills,
+  showUserBills,
+  showDetailedRecords,
+} from "./tools/queryTools";
+
 import "../triggers/telegramTriggers";
 
 class ProductionPinoLogger extends MastraLogger {
@@ -82,15 +103,27 @@ export const mastra = new Mastra({
       name: "allTools",
       version: "1.0.0",
       tools: {
+        // 操作人管理
+        addOperator,
+        removeOperator,
+        checkUserPermission,
+        listOperators,
+        // 交易记录
         addIncomeRecord,
-        addExpenseRecord,
-        deleteRecord,
-        getDailySummary,
-        updateSettings,
-        getSettings,
-        getExchangeRate,
-        convertCurrency,
-        getMultipleExchangeRates,
+        addOutgoingRecord,
+        revokeLastIncome,
+        revokeLastOutgoing,
+        // 汇率费率和日切
+        setExchangeRate,
+        setFeeRate,
+        convertTHBtoUSD,
+        getGroupSettings,
+        showCurrentRates,
+        setCutoffTime,
+        // 账单查询
+        showAllBills,
+        showUserBills,
+        showDetailedRecords,
       },
     }),
   },
