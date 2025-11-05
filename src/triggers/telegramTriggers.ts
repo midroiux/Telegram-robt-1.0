@@ -165,7 +165,7 @@ async function sendTelegramMessage(
         body: JSON.stringify({
           chat_id: chatId,
           text: text,
-          parse_mode: "Markdown",
+          // 完全移除 parse_mode，使用纯文本
         }),
       }
     );
