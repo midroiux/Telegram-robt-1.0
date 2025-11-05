@@ -17,6 +17,15 @@ export type TriggerInfoTelegramOnNewMessage = {
     message: string;
     userId: string;
     chatId: number;
+    // 完整的Telegram消息对象
+    entities?: any[];
+    replyToMessage?: {
+      from: {
+        id: number;
+        username?: string;
+        first_name: string;
+      };
+    };
   };
   payload: any;
 };
@@ -62,6 +71,15 @@ export function registerTelegramTrigger({
                 message: payload.message.text || "",
                 userId: payload.message.from.id.toString(),
                 chatId: payload.message.chat.id,
+                // 传递完整的entities和reply信息用于权限管理
+                entities: payload.message.entities || [],
+                replyToMessage: payload.message.reply_to_message ? {
+                  from: {
+                    id: payload.message.reply_to_message.from.id,
+                    username: payload.message.reply_to_message.from.username,
+                    first_name: payload.message.reply_to_message.from.first_name,
+                  }
+                } : undefined,
               },
               payload,
             } as TriggerInfoTelegramOnNewMessage);
