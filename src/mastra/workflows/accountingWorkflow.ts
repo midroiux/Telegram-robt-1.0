@@ -1,5 +1,6 @@
 import { createStep, createWorkflow } from "../inngest";
 import { z } from "zod";
+import { RuntimeContext } from "@mastra/core/di";
 import {
   addIncomeRecord,
   addOutgoingRecord,
@@ -40,6 +41,8 @@ const processAccountingMessage = createStep({
       message: inputData.message,
     });
     
+    const runtimeContext = new RuntimeContext();
+    
     try {
       const msg = inputData.message.trim();
       const groupId = "-4948354487"; // 固定群组ID
@@ -62,13 +65,13 @@ const processAccountingMessage = createStep({
             currency,
             messageId: "",
           },
-          mastra,
+          runtimeContext,
         });
         
         // 显示账单
         const billsResult = await showAllBills.execute({
           context: { groupId, showAll: false },
-          mastra,
+          runtimeContext,
         });
         
         return {
@@ -96,13 +99,13 @@ const processAccountingMessage = createStep({
             currency,
             messageId: "",
           },
-          mastra,
+          runtimeContext,
         });
         
         // 显示账单
         const billsResult = await showAllBills.execute({
           context: { groupId, showAll: false },
-          mastra,
+          runtimeContext,
         });
         
         return {
@@ -118,7 +121,7 @@ const processAccountingMessage = createStep({
         
         const billsResult = await showAllBills.execute({
           context: { groupId, showAll: false },
-          mastra,
+          runtimeContext,
         });
         
         return {
@@ -134,7 +137,7 @@ const processAccountingMessage = createStep({
         
         const billsResult = await showAllBills.execute({
           context: { groupId, showAll: true },
-          mastra,
+          runtimeContext,
         });
         
         return {
@@ -150,7 +153,7 @@ const processAccountingMessage = createStep({
         
         const deleteResult = await deleteAllRecords.execute({
           context: { groupId },
-          mastra,
+          runtimeContext,
         });
         
         return {
