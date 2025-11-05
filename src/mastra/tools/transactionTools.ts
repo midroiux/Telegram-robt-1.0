@@ -67,7 +67,7 @@ export const addIncomeRecord = createTool({
       const symbol = context.currency === "USD" ? "$" : "฿";
       return {
         success: true,
-        message: `✅ 入款成功: ${symbol}${context.amount}`,
+        message: `✅ 入款成功: +${symbol}${context.amount}`,
         recordId,
       };
     } catch (error: any) {
@@ -143,7 +143,7 @@ export const addOutgoingRecord = createTool({
       const symbol = context.currency === "USD" ? "$" : "฿";
       return {
         success: true,
-        message: `✅ 下发成功: ${symbol}${context.amount}`,
+        message: `✅ 下发成功: -${symbol}${context.amount}`,
         recordId,
       };
     } catch (error: any) {

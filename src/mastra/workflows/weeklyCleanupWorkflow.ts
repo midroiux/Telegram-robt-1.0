@@ -11,7 +11,7 @@ export const weeklyCleanupCron = inngest.createFunction(
     id: "weekly-cleanup-cron",
     name: "Weekly Cleanup Cron (Every 7 Days at Midnight UTC)",
   },
-  { cron: "0 0 */7 * *" }, // 每7天的0点 UTC
+  { cron: "0 0 * * 0" }, // 每周日0点 UTC（每7天）
   async ({ step, logger }) => {
     logger.info("🕐 [Cron] 定时任务触发：每7天自动清理数据");
     

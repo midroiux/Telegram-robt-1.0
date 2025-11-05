@@ -281,7 +281,7 @@ const processAccountingMessage = createStep({
         });
         
         return {
-          response: `✅ 入款成功: ${currency === "USD" ? "$" : "฿"}${amount}\n\n${billsResult.message}`,
+          response: `✅ 入款成功: +${currency === "USD" ? "$" : "฿"}${amount}\n\n${billsResult.message}`,
           success: true,
           userName: inputData.userName,
           chatId: inputData.chatId,
@@ -316,7 +316,7 @@ const processAccountingMessage = createStep({
         });
         
         return {
-          response: `✅ 出款成功: ${currency === "USD" ? "$" : "฿"}${amount}\n\n${billsResult.message}`,
+          response: `✅ 出款成功: -${currency === "USD" ? "$" : "฿"}${amount}\n\n${billsResult.message}`,
           success: true,
           userName: inputData.userName,
           chatId: inputData.chatId,
