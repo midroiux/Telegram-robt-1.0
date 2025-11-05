@@ -51,6 +51,18 @@ const processAccountingMessage = createStep({
       const msg = inputData.message.trim();
       const groupId = "-4948354487"; // 固定群组ID
       
+      // 匹配 我的ID (无需权限，让新用户也能查询)
+      if (msg === "我的ID" || msg === "我的id" || msg === "/myid") {
+        logger?.info("✅ [FastMatch] 匹配到查询ID命令");
+        
+        return {
+          response: `👤 您的信息：\n用户名：${inputData.userName}\n用户ID：\`${inputData.userId}\`\n\n💡 请将此ID提供给管理员以获取操作权限`,
+          success: true,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
       // 🔒 权限检查：只有授权用户才能使用机器人
       logger?.info("🔒 [Permission] 开始权限检查", {
         userId: inputData.userId,
@@ -72,7 +84,7 @@ const processAccountingMessage = createStep({
         });
         
         return {
-          response: `❌ 您没有权限使用此机器人\n原因: ${permissionResult.reason}\n\n请联系管理员添加您为操作人`,
+          response: `❌ 您没有权限使用此机器人\n原因: ${permissionResult.reason}\n\n💡 发送 "我的ID" 查看您的用户ID，然后联系管理员添加权限`,
           success: false,
           userName: inputData.userName,
           chatId: inputData.chatId,
@@ -285,7 +297,7 @@ const processAccountingMessage = createStep({
       // 未匹配到命令
       logger?.info("❓ [FastMatch] 未识别的命令");
       return {
-        response: "命令格式：\n+数字 (入款)\n-数字 (出款)\n总账 (查询)\n日结算 (今日结算)\n入款费率X (设置入款费率)\n下发费率X (设置下发费率)\n删除所有账单",
+        response: "命令格式：\n+数字 (入款)\n-数字 (出款)\n总账 (查询)\n日结算 (今日结算)\n入款费率X (设置入款费率)\n下发费率X (设置下发费率)\n我的ID (查询用户ID)\n删除所有账单",
         success: false,
         userName: inputData.userName,
         chatId: inputData.chatId,
