@@ -40,11 +40,19 @@ export function registerTelegramTrigger({
         try {
           const payload = await c.req.json();
 
+          logger?.info("📦 [Telegram] 收到完整payload", {
+            payload: JSON.stringify(payload, null, 2),
+          });
+
           // 处理普通消息
           if (payload.message) {
             logger?.info("📝 [Telegram] 收到消息", {
               username: payload.message?.from?.username,
               text: payload.message?.text,
+              caption: payload.message?.caption,
+              messageType: Object.keys(payload.message).filter(k => 
+                !['message_id', 'from', 'chat', 'date'].includes(k)
+              ),
             });
 
             await handler(mastra, {
