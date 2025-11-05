@@ -17,6 +17,55 @@ import { checkUserPermission } from "../tools/groupAccountingTools";
  */
 
 /**
+ * 辅助函数：检查用户是否是Telegram群组管理员
+ */
+async function isGroupAdmin(chatId: number, userId: string, logger: any): Promise<boolean> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  
+  if (!botToken) {
+    logger?.error("❌ TELEGRAM_BOT_TOKEN 未设置");
+    return false;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${chatId}&user_id=${userId}`,
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      logger?.error("❌ [IsGroupAdmin] Telegram API调用失败", {
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return false;
+    }
+
+    const data = await response.json();
+    
+    if (!data.ok) {
+      logger?.error("❌ [IsGroupAdmin] Telegram API返回错误", { error: data });
+      return false;
+    }
+
+    const status = data.result?.status;
+    const isAdmin = status === "creator" || status === "administrator";
+    
+    logger?.info("✅ [IsGroupAdmin] 管理员检查完成", {
+      userId,
+      chatId,
+      status,
+      isAdmin,
+    });
+    
+    return isAdmin;
+  } catch (error: any) {
+    logger?.error("❌ [IsGroupAdmin] 检查失败", { error: error.message });
+    return false;
+  }
+}
+
+/**
  * Step 1: 直接匹配命令并执行
  * 使用正则表达式快速匹配，直接调用工具
  */
@@ -72,16 +121,15 @@ const processAccountingMessage = createStep({
       }
       
       // 🔑 权限管理命令 (需要验证管理员身份)
-      // 管理员ID列表 - 只有这些用户可以管理权限
-      const ADMIN_USER_IDS = ["7894748551"]; // 您的Telegram用户ID
-      
       // 方式1: 回复某人消息 + "添加权限"
       // 方式2: @某人 + "添加权限" (仅text_mention有效)
       if (msg.includes("添加权限") || msg.includes("添加操作人")) {
         logger?.info("🔑 [Permission] 检测到添加权限命令");
         
-        // 🔒 验证管理员身份
-        if (!ADMIN_USER_IDS.includes(inputData.userId)) {
+        // 🔒 验证管理员身份（动态检查Telegram群组管理员）
+        const isAdmin = await isGroupAdmin(inputData.chatId, inputData.userId, logger);
+        
+        if (!isAdmin) {
           logger?.info("❌ [Permission] 非管理员尝试添加权限", {
             userId: inputData.userId,
             userName: inputData.userName,
@@ -154,8 +202,10 @@ const processAccountingMessage = createStep({
       if (msg.includes("移除权限") || msg.includes("删除操作人")) {
         logger?.info("🔑 [Permission] 检测到移除权限命令");
         
-        // 🔒 验证管理员身份
-        if (!ADMIN_USER_IDS.includes(inputData.userId)) {
+        // 🔒 验证管理员身份（动态检查Telegram群组管理员）
+        const isAdmin = await isGroupAdmin(inputData.chatId, inputData.userId, logger);
+        
+        if (!isAdmin) {
           logger?.info("❌ [Permission] 非管理员尝试移除权限", {
             userId: inputData.userId,
             userName: inputData.userName,
