@@ -214,7 +214,7 @@ export const revokeLastIncome = createTool({
       // 标记为已撤销
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `入款记录!H${lastIndex + 1}`,
+        range: `Deposits!H${lastIndex + 1}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [["已撤销"]],
@@ -297,7 +297,7 @@ export const revokeLastOutgoing = createTool({
       
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `下发记录!H${lastIndex + 1}`,
+        range: `Withdrawals!H${lastIndex + 1}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [["已撤销"]],
@@ -366,7 +366,7 @@ export const modifyRecordAmount = createTool({
         if (incomeRows[i][8] === context.messageId && incomeRows[i][2] === context.groupId) {
           await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `入款记录!F${i + 1}`,
+            range: `Deposits!F${i + 1}`,
             valueInputOption: "USER_ENTERED",
             requestBody: {
               values: [[context.newAmount]],
@@ -392,7 +392,7 @@ export const modifyRecordAmount = createTool({
         if (outgoingRows[i][8] === context.messageId && outgoingRows[i][2] === context.groupId) {
           await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `下发记录!F${i + 1}`,
+            range: `Withdrawals!F${i + 1}`,
             valueInputOption: "USER_ENTERED",
             requestBody: {
               values: [[context.newAmount]],
@@ -465,7 +465,7 @@ export const deleteAllRecords = createTool({
         if (incomeRows[i][2] === context.groupId && incomeRows[i][7] === "正常") {
           await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `入款记录!H${i + 1}`,
+            range: `Deposits!H${i + 1}`,
             valueInputOption: "USER_ENTERED",
             requestBody: {
               values: [["已删除"]],
@@ -486,7 +486,7 @@ export const deleteAllRecords = createTool({
         if (outgoingRows[i][2] === context.groupId && outgoingRows[i][7] === "正常") {
           await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `下发记录!H${i + 1}`,
+            range: `Withdrawals!H${i + 1}`,
             valueInputOption: "USER_ENTERED",
             requestBody: {
               values: [["已删除"]],
