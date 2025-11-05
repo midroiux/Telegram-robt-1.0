@@ -3,6 +3,7 @@ import { init, serve as originalInngestServe } from "@mastra/inngest";
 import { registerApiRoute as originalRegisterApiRoute } from "@mastra/core/server";
 import { type Mastra } from "@mastra/core";
 import { type Inngest, InngestFunction, NonRetriableError } from "inngest";
+import { dailySettlementCron } from "../workflows/dailySettlementWorkflow";
 
 // Initialize Inngest with Mastra to get Inngest-compatible workflow helpers
 const {
@@ -26,7 +27,10 @@ export function createWorkflow(
 // Export the Inngest client and Inngest-compatible workflow helpers
 export { inngest, createStep, cloneStep };
 
-const inngestFunctions: InngestFunction.Any[] = [];
+const inngestFunctions: InngestFunction.Any[] = [
+  // 注册每日结算定时任务
+  dailySettlementCron,
+];
 
 // Create a middleware for Inngest to be able to route triggers to Mastra directly.
 export function registerApiRoute<P extends string>(
