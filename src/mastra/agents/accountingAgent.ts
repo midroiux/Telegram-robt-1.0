@@ -226,7 +226,7 @@ export const accountingAgent = new Agent({
 - 尊重用户隐私和数据安全
 `,
 
-  model: openai.responses("gpt-5"),
+  model: openai("gpt-4o-mini"),
   
   tools: {
     // 操作人管理
