@@ -135,7 +135,7 @@ export const showAllBills = createTool({
         
         // 如果只显示前3笔但总数大于3，添加提示
         if (!context.showAll && incomeRecords.length > 3) {
-          message += ` （仅显示最近3笔，共${incomeRecords.length}笔）\n`;
+          message += ` （仅显示最近3笔）\n`;
         }
       }
       
@@ -155,7 +155,7 @@ export const showAllBills = createTool({
         
         // 如果只显示前3笔但总数大于3，添加提示
         if (!context.showAll && outgoingRecords.length > 3) {
-          message += ` （仅显示最近3笔，共${outgoingRecords.length}笔）\n`;
+          message += ` （仅显示最近3笔）\n`;
         }
       }
       
