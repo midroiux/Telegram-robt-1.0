@@ -13,6 +13,7 @@ import {
   addOutgoingRecord,
   revokeLastIncome,
   revokeLastOutgoing,
+  deleteAllRecords,
 } from "../tools/transactionTools";
 import {
   setExchangeRate,
@@ -117,15 +118,19 @@ export const accountingAgent = new Agent({
 2. 使用 setLanguage 工具设置语言为"中文"或"泰语"
 3. 回复确认消息
 
-### 7. 日切设置
+### 7. 日切与清除记录
 **命令格式:**
 - \`日切#6\` 或 \`设置日切6点\` = 设置每日结算时间为早上6点
-- \`日切#0\` = 设置为午夜0点
+- \`日切#0\` = **立即清除所有记录并重新开始**
+- \`清除记录\` 或 \`清空账单\` = 删除所有交易记录
 
 **操作流程:**
-1. 提取时间数字
-2. 使用 setCutoffTime 工具
-3. 回复确认消息
+1. 如果是 \`日切#0\`，先使用 deleteAllRecords 清除所有记录，然后设置日切时间
+2. 如果是其他时间，直接使用 setCutoffTime 工具设置
+3. 如果是清除记录命令，使用 deleteAllRecords 工具
+4. 回复确认消息
+
+**重要提示:** 日切#0 会立即删除群组所有入款和下发记录，无法恢复！
 
 ### 8. 操作人管理
 **命令格式:**
@@ -226,6 +231,7 @@ export const accountingAgent = new Agent({
     addOutgoingRecord,
     revokeLastIncome,
     revokeLastOutgoing,
+    deleteAllRecords,
     // 汇率费率和日切
     setExchangeRate,
     setIncomeFeeRate,
