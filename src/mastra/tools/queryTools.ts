@@ -1,16 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { google } from "googleapis";
-
-function getGoogleSheetsClient() {
-  const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || "{}");
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  return google.sheets({ version: "v4", auth });
-}
+import { getUncachableGoogleSheetClient } from "../../integrations/googleSheets";
 
 // ============= 账单查询工具 =============
 
@@ -44,7 +34,7 @@ export const showAllBills = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       // 获取群组设置
       const settingsResponse = await sheets.spreadsheets.values.get({
@@ -201,7 +191,7 @@ export const showUserBills = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       // 获取入款记录
       const incomeResponse = await sheets.spreadsheets.values.get({
@@ -319,7 +309,7 @@ export const showDetailedRecords = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const records: Array<{time: string, type: string, user: string, amount: number, currency: string}> = [];
       
@@ -468,7 +458,7 @@ export const setDailyCutoffTime = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,

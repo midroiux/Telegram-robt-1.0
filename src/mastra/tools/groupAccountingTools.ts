@@ -1,16 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { google } from "googleapis";
-
-function getGoogleSheetsClient() {
-  const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || "{}");
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  return google.sheets({ version: "v4", auth });
-}
+import { getUncachableGoogleSheetClient } from "../../integrations/googleSheets";
 
 // ============= 操作人管理工具 =============
 
@@ -43,7 +33,7 @@ export const addOperator = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       const timestamp = new Date().toISOString().replace('T', ' ').split('.')[0];
       
       const values = [[
@@ -107,7 +97,7 @@ export const removeOperator = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       // 读取所有操作人
       const response = await sheets.spreadsheets.values.get({
@@ -187,7 +177,7 @@ export const listOperators = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -251,7 +241,7 @@ export const setAllUsersMode = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       // 读取群组设置
       const response = await sheets.spreadsheets.values.get({
@@ -343,7 +333,7 @@ export const removeAllOperators = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -411,7 +401,7 @@ export const checkUserPermission = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       // 检查是否开启所有人模式
       const settingsResponse = await sheets.spreadsheets.values.get({

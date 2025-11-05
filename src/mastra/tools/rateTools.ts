@@ -1,16 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { google } from "googleapis";
-
-function getGoogleSheetsClient() {
-  const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || "{}");
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  return google.sheets({ version: "v4", auth });
-}
+import { getUncachableGoogleSheetClient } from "../../integrations/googleSheets";
 
 // ============= 汇率/费率管理工具 =============
 
@@ -42,7 +32,7 @@ export const setExchangeRate = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -133,7 +123,7 @@ export const setFeeRate = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -229,7 +219,7 @@ export const getGroupSettings = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -316,7 +306,7 @@ export const convertTHBtoUSD = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -385,7 +375,7 @@ export const setRealtimeRateMode = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -475,7 +465,7 @@ export const setCutoffTime = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -566,7 +556,7 @@ export const showCurrentRates = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,

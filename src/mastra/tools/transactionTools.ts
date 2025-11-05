@@ -1,16 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { google } from "googleapis";
-
-function getGoogleSheetsClient() {
-  const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS || "{}");
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  return google.sheets({ version: "v4", auth });
-}
+import { getUncachableGoogleSheetClient } from "../../integrations/googleSheets";
 
 // ============= 入款/下发记录工具 =============
 
@@ -47,7 +37,7 @@ export const addIncomeRecord = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       const timestamp = new Date().toISOString().replace('T', ' ').split('.')[0];
       const recordId = `INC_${Date.now()}`;
       
@@ -123,7 +113,7 @@ export const addOutgoingRecord = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       const timestamp = new Date().toISOString().replace('T', ' ').split('.')[0];
       const recordId = `OUT_${Date.now()}`;
       
@@ -194,7 +184,7 @@ export const revokeLastIncome = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -279,7 +269,7 @@ export const revokeLastOutgoing = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -363,7 +353,7 @@ export const modifyRecordAmount = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       
       // 先在入款记录中查找
       const incomeResponse = await sheets.spreadsheets.values.get({
@@ -460,7 +450,7 @@ export const deleteAllRecords = createTool({
         throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
       }
       
-      const sheets = getGoogleSheetsClient();
+      const sheets = await getUncachableGoogleSheetClient();
       let incomeCount = 0;
       let outgoingCount = 0;
       
