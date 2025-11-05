@@ -167,7 +167,7 @@ export const setFeeRate = createTool({
           requestBody: {
             values: [[
               context.groupId,
-              7.2, // 默认汇率
+              35, // 默认汇率 THB/USD
               context.rate,
               6,
               "否",
@@ -240,7 +240,7 @@ export const getGroupSettings = createTool({
       
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][0] === context.groupId) {
-          const exchangeRate = parseFloat(rows[i][1] || "7.2");
+          const exchangeRate = parseFloat(rows[i][1] || "35");
           const feeRate = parseFloat(rows[i][2] || "5");
           const cutoffTime = parseInt(rows[i][3] || "6");
           const allUsersMode = rows[i][4] === "是";
@@ -419,7 +419,7 @@ export const setRealtimeRateMode = createTool({
           requestBody: {
             values: [[
               context.groupId,
-              7.2,
+              35, // 默认汇率 THB/USD
               5,
               6,
               "否",

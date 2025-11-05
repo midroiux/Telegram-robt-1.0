@@ -502,7 +502,7 @@ export const setDailyCutoffTime = createTool({
           requestBody: {
             values: [[
               context.groupId,
-              7.2,
+              35, // 默认汇率 THB/USD
               5,
               context.hour,
               "否",

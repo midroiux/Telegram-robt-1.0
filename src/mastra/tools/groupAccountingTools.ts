@@ -288,7 +288,7 @@ export const setAllUsersMode = createTool({
           requestBody: {
             values: [[
               context.groupId,
-              7.2, // 默认汇率
+              35, // 默认汇率 THB/USD
               5,   // 默认费率
               6,   // 默认日切时间
               context.enabled ? "是" : "否",
