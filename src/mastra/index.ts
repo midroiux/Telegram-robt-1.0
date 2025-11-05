@@ -47,7 +47,7 @@ import {
   showDetailedRecords,
 } from "./tools/queryTools";
 
-import "../triggers/telegramTriggers";
+import { accountingBotTrigger } from "../triggers/telegramTriggers";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -191,6 +191,8 @@ export const mastra = new Mastra({
         // 3. Establishing a publish-subscribe system for real-time monitoring
         //    through the workflow:${workflowId}:${runId} channel
       },
+      // Telegram webhook API routes
+      ...accountingBotTrigger,
     ],
   },
   logger:
