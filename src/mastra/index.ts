@@ -9,8 +9,22 @@ import { z } from "zod";
 
 import { sharedPostgresStorage } from "./storage";
 import { inngest, inngestServe } from "./inngest";
-import { exampleWorkflow } from "./workflows/exampleWorkflow";
-import { exampleAgent } from "./agents/exampleAgent";
+import { accountingWorkflow } from "./workflows/accountingWorkflow";
+import { accountingAgent } from "./agents/accountingAgent";
+import {
+  addIncomeRecord,
+  addExpenseRecord,
+  deleteRecord,
+  getDailySummary,
+  updateSettings,
+  getSettings,
+} from "./tools/googleSheetsTool";
+import {
+  getExchangeRate,
+  convertCurrency,
+  getMultipleExchangeRates,
+} from "./tools/exchangeRateTool";
+import "../triggers/telegramTriggers";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -56,14 +70,28 @@ class ProductionPinoLogger extends MastraLogger {
 export const mastra = new Mastra({
   storage: sharedPostgresStorage,
   // Register your workflows here
-  workflows: {},
+  workflows: {
+    accountingWorkflow,
+  },
   // Register your agents here
-  agents: {},
+  agents: {
+    accountingAgent,
+  },
   mcpServers: {
     allTools: new MCPServer({
       name: "allTools",
       version: "1.0.0",
-      tools: {},
+      tools: {
+        addIncomeRecord,
+        addExpenseRecord,
+        deleteRecord,
+        getDailySummary,
+        updateSettings,
+        getSettings,
+        getExchangeRate,
+        convertCurrency,
+        getMultipleExchangeRates,
+      },
     }),
   },
   bundler: {
