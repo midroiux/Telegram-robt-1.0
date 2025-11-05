@@ -299,6 +299,7 @@ export const getGroupSettings = createTool({
     cutoffTime: z.number(),
     allUsersMode: z.boolean(),
     realtimeRate: z.boolean(),
+    language: z.string(),
     message: z.string(),
   }),
   
@@ -329,6 +330,7 @@ export const getGroupSettings = createTool({
           const cutoffTime = parseInt(rows[i][4] || "6");
           const allUsersMode = rows[i][5] === "是";
           const realtimeRate = rows[i][6] === "是";
+          const language = rows[i][9] || "中文";
           
           logger?.info("✅ [GetGroupSettings] 获取成功");
           
@@ -340,6 +342,7 @@ export const getGroupSettings = createTool({
             cutoffTime,
             allUsersMode,
             realtimeRate,
+            language,
             message: `当前设置:\n汇率: ${exchangeRate}\n入款费率: ${incomeFeeRate}%\n下发费率: ${outgoingFeeRate}%\n日切时间: ${cutoffTime}点`,
           };
         }
@@ -354,6 +357,7 @@ export const getGroupSettings = createTool({
         cutoffTime: 6,
         allUsersMode: false,
         realtimeRate: false,
+        language: "中文",
         message: "当前使用默认设置:\n汇率: 35\n入款费率: 5%\n下发费率: 0%\n日切时间: 6点",
       };
     } catch (error: any) {
@@ -366,6 +370,7 @@ export const getGroupSettings = createTool({
         cutoffTime: 6,
         allUsersMode: false,
         realtimeRate: false,
+        language: "中文",
         message: `❌ 获取失败: ${error.message}`,
       };
     }
