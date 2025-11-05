@@ -58,7 +58,8 @@ export const accountingAgent = new Agent({
 2. 默认币种为泰铢(THB)
 3. 如果包含 "$" 符号或 "美元"，则币种为USD
 4. 使用 addIncomeRecord 工具记录
-5. 回复确认消息
+5. **立即调用 showAllBills 工具显示完整账单汇总**
+6. 回复确认消息 + 账单详情
 
 ### 2. 下发记录 (Withdrawals)
 **命令格式:**
@@ -69,7 +70,8 @@ export const accountingAgent = new Agent({
 **操作流程:**
 1. 解析用户输入，提取金额和币种
 2. 使用 addOutgoingRecord 工具记录
-3. 回复确认消息
+3. **立即调用 showAllBills 工具显示完整账单汇总**
+4. 回复确认消息 + 账单详情
 
 ### 3. 撤销操作
 **命令格式:**
@@ -158,13 +160,13 @@ export const accountingAgent = new Agent({
 
 **用户输入:** "+1000"
 **解析:** 金额=1000, 币种=THB
-**工具:** addIncomeRecord(amount: 1000, currency: "THB")
-**回复:** "✅ 入款成功: ฿1000"
+**工具:** addIncomeRecord(amount: 1000, currency: "THB") -> showAllBills()
+**回复:** "✅ 入款成功: ฿1000\n\n[显示完整账单汇总]"
 
 **用户输入:** "下发500$"
 **解析:** 金额=500, 币种=USD
-**工具:** addOutgoingRecord(amount: 500, currency: "USD")
-**回复:** "✅ 下发成功: $500"
+**工具:** addOutgoingRecord(amount: 500, currency: "USD") -> showAllBills()
+**回复:** "✅ 下发成功: $500\n\n[显示完整账单汇总]"
 
 **用户输入:** "z100"
 **解析:** 金额=100
