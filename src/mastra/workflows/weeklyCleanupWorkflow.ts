@@ -1,10 +1,12 @@
 import { inngest } from "../inngest/client";
 import { RuntimeContext } from "@mastra/core/di";
 import { deleteAllRecords } from "../tools/transactionTools";
+import { getUncachableGoogleSheetClient } from "../../integrations/googleSheets";
 
 /**
  * Weekly Cleanup Cron Function
  * 每7天自动清除所有记录并发送通知到Telegram
+ * 支持多群组：自动获取所有活跃群组并分别清理
  */
 export const weeklyCleanupCron = inngest.createFunction(
   {
@@ -13,88 +15,122 @@ export const weeklyCleanupCron = inngest.createFunction(
   },
   { cron: "0 0 * * 0" }, // 每周日0点 UTC（每7天）
   async ({ step, logger }) => {
-    logger.info("🕐 [Cron] 定时任务触发：每7天自动清理数据");
+    logger.info("🕐 [Cron] 定时任务触发：每7天自动清理数据（多群组）");
     
-    // 群组ID和ChatID
-    const groupId = "-4948354487"; // 固定群组ID
-    const chatId = -4948354487; // Telegram群组ChatID
-    
-    // Step 1: 执行数据清理
-    const cleanupResult = await step.run("run-weekly-cleanup", async () => {
-      const runtimeContext = new RuntimeContext();
-      
+    // Step 1: 获取所有活跃群组列表
+    const activeGroups = await step.run("get-active-groups", async () => {
       try {
-        const result = await deleteAllRecords.execute({
-          context: {
-            groupId,
-          },
-          runtimeContext,
+        const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+        if (!spreadsheetId) {
+          throw new Error("GOOGLE_SHEETS_ID 环境变量未设置");
+        }
+        
+        const sheets = await getUncachableGoogleSheetClient();
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: "GroupSettings!A:D",
         });
         
-        logger.info("✅ [WeeklyCleanup] 清理完成", {
-          success: result.success,
-        });
+        const rows = response.data.values || [];
+        const groups: Array<{groupId: string, chatId: number}> = [];
         
-        return result;
+        // 从第2行开始读取（跳过表头）
+        for (let i = 1; i < rows.length; i++) {
+          const groupId = rows[i][0];
+          if (groupId) {
+            const chatId = parseInt(groupId); // GroupID就是ChatID
+            groups.push({ groupId, chatId });
+          }
+        }
+        
+        logger.info(`📋 [GetActiveGroups] 找到 ${groups.length} 个活跃群组`, { groups });
+        return groups;
       } catch (error: any) {
-        logger.error("❌ [WeeklyCleanup] 清理失败", {
-          error: error.message,
-        });
-        
-        throw error;
+        logger.error("❌ [GetActiveGroups] 获取群组列表失败", { error: error.message });
+        return [];
       }
     });
     
-    // Step 2: 发送清理通知到Telegram
-    const sendResult = await step.run("send-cleanup-notification", async () => {
+    // Step 2: 对每个群组执行清理并发送通知
+    const results = await step.run("cleanup-all-groups", async () => {
+      const runtimeContext = new RuntimeContext();
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      const groupResults = [];
       
       if (!botToken) {
         logger.error("❌ TELEGRAM_BOT_TOKEN 未设置");
-        throw new Error("TELEGRAM_BOT_TOKEN 未设置");
+        return [];
       }
+      
+      for (const group of activeGroups) {
+        try {
+          // 执行清理
+          const cleanupResult = await deleteAllRecords.execute({
+            context: { groupId: group.groupId },
+            runtimeContext,
+          });
+          
+          logger.info(`✅ [WeeklyCleanup] 群组 ${group.groupId} 清理完成`, {
+            success: cleanupResult.success,
+          });
+          
+          // 发送清理通知到群组
+          const notificationMessage = `🔄 *每周自动清理*\n\n${cleanupResult.message}\n\n系统将重新开始记录新的账单数据`;
+          
+          const response = await fetch(
+            `https://api.telegram.org/bot${botToken}/sendMessage`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                chat_id: group.chatId,
+                text: notificationMessage,
+                parse_mode: "Markdown",
+              }),
+            }
+          );
 
-      try {
-        const notificationMessage = `🔄 *每周自动清理*\n\n${cleanupResult.message}\n\n系统将重新开始记录新的账单数据`;
-        
-        const response = await fetch(
-          `https://api.telegram.org/bot${botToken}/sendMessage`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: notificationMessage,
-              parse_mode: "Markdown",
-            }),
+          if (response.ok) {
+            logger.info(`✅ [SendNotification] 群组 ${group.groupId} 通知已发送`);
+            groupResults.push({
+              groupId: group.groupId,
+              success: true,
+            });
+          } else {
+            const errorText = await response.text();
+            logger.error(`❌ [SendNotification] 群组 ${group.groupId} 发送失败`, { error: errorText });
+            groupResults.push({
+              groupId: group.groupId,
+              success: false,
+              error: errorText,
+            });
           }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          logger.error("❌ [SendCleanupNotification] 发送失败", { error: errorText });
-          throw new Error(`发送Telegram消息失败: ${errorText}`);
+        } catch (error: any) {
+          logger.error(`❌ [WeeklyCleanup] 群组 ${group.groupId} 清理失败`, {
+            error: error.message,
+          });
+          groupResults.push({
+            groupId: group.groupId,
+            success: false,
+            error: error.message,
+          });
         }
-
-        logger.info("✅ [SendCleanupNotification] 清理通知已发送");
-        
-        return {
-          sent: true,
-          message: notificationMessage,
-        };
-      } catch (error: any) {
-        logger.error("❌ [SendCleanupNotification] 发送失败", {
-          error: error.message,
-        });
-        throw error;
       }
+      
+      return groupResults;
+    });
+    
+    logger.info("✅ [Cron] 每周清理流程完成", {
+      totalGroups: activeGroups.length,
+      successCount: results.filter(r => r.success).length,
     });
     
     return {
-      cleanup: cleanupResult,
-      notification: sendResult,
+      success: true,
+      message: `每周清理已完成，处理了 ${activeGroups.length} 个群组`,
+      results,
     };
   }
 );
