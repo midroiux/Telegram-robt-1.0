@@ -162,15 +162,18 @@ export const showAllBills = createTool({
       // 总入款和费率（加粗显示）
       message += `\n\n*总入款：${totalIncome.toFixed(0)}*`;
       message += `\n入款费率：${incomeFeeRate.toFixed(0)}%`;
+      
+      // 总下发放在费率下面
+      if (totalOutgoing > 0) {
+        message += `\n*总下发：${actualOutgoing.toFixed(2)}*`;
+      }
+      
       if (outgoingFeeRate > 0) {
         message += `\n出款费率：${outgoingFeeRate.toFixed(0)}%`;
       }
       
-      // 总下发和净利润（加粗显示关键数据）
+      // 总入款扣费后和净利润（加粗显示关键数据）
       message += `\n\n*总入款扣费后：${actualIncome.toFixed(2)}*`;
-      if (totalOutgoing > 0) {
-        message += `\n*总下发：${actualOutgoing.toFixed(2)}*`;
-      }
       message += `\n*净利润：${netProfit.toFixed(2)}*`;
       
       logger?.info("✅ [ShowAllBills] 查询成功");
@@ -703,9 +706,9 @@ export const dailySettlement = createTool({
       // 汇总信息
       message += `\n总入款：${totalIncome.toFixed(0)}\n`;
       message += `入款费率：${incomeFeeRate}%\n`;
-      message += `入款扣费：${actualIncome.toFixed(2)}\n`;
       message += `总下发：${totalOutgoing.toFixed(2)}\n`;
       message += `下发费率：${outgoingFeeRate}%\n`;
+      message += `\n入款扣费：${actualIncome.toFixed(2)}\n`;
       message += `净利润：${netProfit.toFixed(2)}\n`;
       message += `\n✅ 今日账单已结算并归档`;
       
