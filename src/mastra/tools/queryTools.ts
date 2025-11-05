@@ -148,11 +148,11 @@ export const showAllBills = createTool({
       }
       
       // 总下发和净利润
-      message += `\n\n总入款：${actualIncome.toFixed(2)}`;
+      message += `\n\n总入款扣费后：${actualIncome.toFixed(2)}`;
       if (totalOutgoing > 0) {
         message += `\n总下发：${actualOutgoing.toFixed(2)}`;
       }
-      message += `\n净利润=（（总入款-入款费率）-（出款+出款费率））：${netProfit.toFixed(2)}`;
+      message += `\n净利润：${netProfit.toFixed(2)}`;
       
       logger?.info("✅ [ShowAllBills] 查询成功");
       
