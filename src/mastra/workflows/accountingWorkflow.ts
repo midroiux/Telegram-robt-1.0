@@ -8,6 +8,7 @@ import {
 } from "../tools/transactionTools";
 import { showAllBills, dailySettlement } from "../tools/queryTools";
 import { setIncomeFeeRate, setOutgoingFeeRate } from "../tools/rateTools";
+import { checkUserPermission } from "../tools/groupAccountingTools";
 
 /**
  * Accounting Workflow for Telegram Bot
@@ -49,6 +50,39 @@ const processAccountingMessage = createStep({
     try {
       const msg = inputData.message.trim();
       const groupId = "-4948354487"; // 固定群组ID
+      
+      // 🔒 权限检查：只有授权用户才能使用机器人
+      logger?.info("🔒 [Permission] 开始权限检查", {
+        userId: inputData.userId,
+        userName: inputData.userName,
+      });
+      
+      const permissionResult = await checkUserPermission.execute({
+        context: {
+          groupId,
+          userId: inputData.userId,
+        },
+        runtimeContext,
+      });
+      
+      if (!permissionResult.hasPermission) {
+        logger?.info("❌ [Permission] 无权限", {
+          userId: inputData.userId,
+          reason: permissionResult.reason,
+        });
+        
+        return {
+          response: `❌ 您没有权限使用此机器人\n原因: ${permissionResult.reason}\n\n请联系管理员添加您为操作人`,
+          success: false,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
+      logger?.info("✅ [Permission] 权限验证通过", {
+        userId: inputData.userId,
+        reason: permissionResult.reason,
+      });
       
       // 匹配 +数字 (入款)
       const incomeMatch = msg.match(/^\+(\d+(?:\.\d+)?)(\$)?$/);
