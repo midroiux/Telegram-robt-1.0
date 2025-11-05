@@ -126,11 +126,16 @@ export const showAllBills = createTool({
         message += `（0笔）：\n`;
       } else {
         const displayRecords = context.showAll ? incomeRecords : incomeRecords.slice(-3);
-        message += `（${context.showAll ? incomeRecords.length : '前3'}笔）：\n`;
+        message += `（${incomeRecords.length}笔）：\n`;
         
         for (const record of displayRecords) {
           const actualAmount = record.amount * feeMultiplier;
           message += ` ${record.time} ${record.amount.toFixed(0)} *${feeMultiplier.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+        }
+        
+        // 如果只显示前3笔但总数大于3，添加提示
+        if (!context.showAll && incomeRecords.length > 3) {
+          message += ` （仅显示最近3笔，共${incomeRecords.length}笔）\n`;
         }
       }
       
@@ -140,12 +145,17 @@ export const showAllBills = createTool({
         message += `（0笔）：\n`;
       } else {
         const displayRecords = context.showAll ? outgoingRecords : outgoingRecords.slice(-3);
-        message += `（${context.showAll ? outgoingRecords.length : '前3'}笔）：\n`;
+        message += `（${outgoingRecords.length}笔）：\n`;
         
         for (const record of displayRecords) {
           const actualAmount = record.amount * (1 + outgoingFeeRate / 100);
           const feeMultiplierOut = 1 + outgoingFeeRate / 100;
           message += ` ${record.time} ${record.amount.toFixed(0)} *${feeMultiplierOut.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+        }
+        
+        // 如果只显示前3笔但总数大于3，添加提示
+        if (!context.showAll && outgoingRecords.length > 3) {
+          message += ` （仅显示最近3笔，共${outgoingRecords.length}笔）\n`;
         }
       }
       
