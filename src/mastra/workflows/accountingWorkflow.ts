@@ -355,6 +355,7 @@ const sendTelegramResponse = createStep({
           body: JSON.stringify({
             chat_id: inputData.chatId,
             text: inputData.response,
+            parse_mode: "Markdown",
           }),
         }
       );

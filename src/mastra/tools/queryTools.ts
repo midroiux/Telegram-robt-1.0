@@ -130,7 +130,7 @@ export const showAllBills = createTool({
         
         for (const record of displayRecords) {
           const actualAmount = record.amount * feeMultiplier;
-          message += ` ${record.time} ${record.amount.toFixed(0)} *${feeMultiplier.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+          message += ` ${record.time} ${record.amount.toFixed(0)} ×${feeMultiplier.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
         }
         
         // 如果只显示前3笔但总数大于3，添加提示
@@ -150,7 +150,7 @@ export const showAllBills = createTool({
         for (const record of displayRecords) {
           const actualAmount = record.amount * (1 + outgoingFeeRate / 100);
           const feeMultiplierOut = 1 + outgoingFeeRate / 100;
-          message += ` ${record.time} ${record.amount.toFixed(0)} *${feeMultiplierOut.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+          message += ` ${record.time} ${record.amount.toFixed(0)} ×${feeMultiplierOut.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
         }
         
         // 如果只显示前3笔但总数大于3，添加提示
@@ -159,19 +159,19 @@ export const showAllBills = createTool({
         }
       }
       
-      // 总入款和费率
-      message += `\n总入款：${totalIncome.toFixed(0)}`;
+      // 总入款和费率（加粗显示）
+      message += `\n\n*总入款：${totalIncome.toFixed(0)}*`;
       message += `\n入款费率：${incomeFeeRate.toFixed(0)}%`;
       if (outgoingFeeRate > 0) {
         message += `\n出款费率：${outgoingFeeRate.toFixed(0)}%`;
       }
       
-      // 总下发和净利润
-      message += `\n\n总入款扣费后：${actualIncome.toFixed(2)}`;
+      // 总下发和净利润（加粗显示关键数据）
+      message += `\n\n*总入款扣费后：${actualIncome.toFixed(2)}*`;
       if (totalOutgoing > 0) {
-        message += `\n总下发：${actualOutgoing.toFixed(2)}`;
+        message += `\n*总下发：${actualOutgoing.toFixed(2)}*`;
       }
-      message += `\n净利润：${netProfit.toFixed(2)}`;
+      message += `\n*净利润：${netProfit.toFixed(2)}*`;
       
       logger?.info("✅ [ShowAllBills] 查询成功");
       
@@ -685,7 +685,7 @@ export const dailySettlement = createTool({
       } else {
         for (const record of incomeRecords) {
           const actualAmount = record.amount * feeMultiplier;
-          message += `${record.time} ${record.amount.toFixed(0)} *${feeMultiplier.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+          message += `${record.time} ${record.amount.toFixed(0)} ×${feeMultiplier.toFixed(2)}=${actualAmount.toFixed(0)}\n`;
         }
       }
       
@@ -696,7 +696,7 @@ export const dailySettlement = createTool({
       } else {
         for (const record of outgoingRecords) {
           const actualAmount = record.amount * (1 + outgoingFeeRate / 100);
-          message += `${record.time} ${record.amount.toFixed(0)} *${(1 + outgoingFeeRate / 100).toFixed(2)}=${actualAmount.toFixed(0)}\n`;
+          message += `${record.time} ${record.amount.toFixed(0)} ×${(1 + outgoingFeeRate / 100).toFixed(2)}=${actualAmount.toFixed(0)}\n`;
         }
       }
       
