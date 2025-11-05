@@ -39,7 +39,7 @@ export const showAllBills = createTool({
       // 获取群组设置
       const settingsResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const settingsRows = settingsResponse.data.values || [];
@@ -57,7 +57,7 @@ export const showAllBills = createTool({
       // 获取入款记录
       const incomeResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "入款记录!A:I",
+        range: "Deposits!A:I",
       });
       
       const incomeRows = incomeResponse.data.values || [];
@@ -88,7 +88,7 @@ export const showAllBills = createTool({
       // 获取下发记录
       const outgoingResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "下发记录!A:I",
+        range: "Withdrawals!A:I",
       });
       
       const outgoingRows = outgoingResponse.data.values || [];
@@ -196,7 +196,7 @@ export const showUserBills = createTool({
       // 获取入款记录
       const incomeResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "入款记录!A:I",
+        range: "Deposits!A:I",
       });
       
       const incomeRows = incomeResponse.data.values || [];
@@ -226,7 +226,7 @@ export const showUserBills = createTool({
       // 获取下发记录
       const outgoingResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "下发记录!A:I",
+        range: "Withdrawals!A:I",
       });
       
       const outgoingRows = outgoingResponse.data.values || [];
@@ -316,7 +316,7 @@ export const showDetailedRecords = createTool({
       // 获取入款记录
       const incomeResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "入款记录!A:I",
+        range: "Deposits!A:I",
       });
       
       const incomeRows = incomeResponse.data.values || [];
@@ -335,7 +335,7 @@ export const showDetailedRecords = createTool({
       // 获取下发记录
       const outgoingResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "下发记录!A:I",
+        range: "Withdrawals!A:I",
       });
       
       const outgoingRows = outgoingResponse.data.values || [];
@@ -462,7 +462,7 @@ export const setDailyCutoffTime = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -487,7 +487,7 @@ export const setDailyCutoffTime = createTool({
       } else {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "群组设置!A:H",
+          range: "GroupSettings!A:H",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[

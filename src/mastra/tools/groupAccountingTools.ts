@@ -48,7 +48,7 @@ export const addOperator = createTool({
       
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: "操作人!A:E",
+        range: "Operators!A:E",
         valueInputOption: "USER_ENTERED",
         requestBody: { values },
       });
@@ -102,7 +102,7 @@ export const removeOperator = createTool({
       // 读取所有操作人
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "操作人!A:E",
+        range: "Operators!A:E",
       });
       
       const rows = response.data.values || [];
@@ -181,7 +181,7 @@ export const listOperators = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "操作人!A:E",
+        range: "Operators!A:E",
       });
       
       const rows = response.data.values || [];
@@ -246,7 +246,7 @@ export const setAllUsersMode = createTool({
       // 读取群组设置
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -273,7 +273,7 @@ export const setAllUsersMode = createTool({
         // 创建新设置
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "群组设置!A:H",
+          range: "GroupSettings!A:H",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -337,7 +337,7 @@ export const removeAllOperators = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "操作人!A:E",
+        range: "Operators!A:E",
       });
       
       const rows = response.data.values || [];
@@ -406,7 +406,7 @@ export const checkUserPermission = createTool({
       // 检查是否开启所有人模式
       const settingsResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const settingsRows = settingsResponse.data.values || [];
@@ -423,7 +423,7 @@ export const checkUserPermission = createTool({
       // 检查是否在操作人列表中
       const operatorsResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "操作人!A:E",
+        range: "Operators!A:E",
       });
       
       const operatorRows = operatorsResponse.data.values || [];

@@ -57,7 +57,7 @@ export const addIncomeRecord = createTool({
       
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: "入款记录!A:I",
+        range: "Deposits!A:I",
         valueInputOption: "USER_ENTERED",
         requestBody: { values },
       });
@@ -133,7 +133,7 @@ export const addOutgoingRecord = createTool({
       
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: "下发记录!A:I",
+        range: "Withdrawals!A:I",
         valueInputOption: "USER_ENTERED",
         requestBody: { values },
       });
@@ -188,7 +188,7 @@ export const revokeLastIncome = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "入款记录!A:I",
+        range: "Deposits!A:I",
       });
       
       const rows = response.data.values || [];
@@ -273,7 +273,7 @@ export const revokeLastOutgoing = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "下发记录!A:I",
+        range: "Withdrawals!A:I",
       });
       
       const rows = response.data.values || [];
@@ -358,7 +358,7 @@ export const modifyRecordAmount = createTool({
       // 先在入款记录中查找
       const incomeResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "入款记录!A:I",
+        range: "Deposits!A:I",
       });
       
       const incomeRows = incomeResponse.data.values || [];
@@ -384,7 +384,7 @@ export const modifyRecordAmount = createTool({
       // 再在下发记录中查找
       const outgoingResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "下发记录!A:I",
+        range: "Withdrawals!A:I",
       });
       
       const outgoingRows = outgoingResponse.data.values || [];
@@ -457,7 +457,7 @@ export const deleteAllRecords = createTool({
       // 删除入款记录
       const incomeResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "入款记录!A:I",
+        range: "Deposits!A:I",
       });
       
       const incomeRows = incomeResponse.data.values || [];
@@ -478,7 +478,7 @@ export const deleteAllRecords = createTool({
       // 删除下发记录
       const outgoingResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "下发记录!A:I",
+        range: "Withdrawals!A:I",
       });
       
       const outgoingRows = outgoingResponse.data.values || [];

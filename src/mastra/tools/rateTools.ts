@@ -36,7 +36,7 @@ export const setExchangeRate = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -62,7 +62,7 @@ export const setExchangeRate = createTool({
         // 创建新设置
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "群组设置!A:H",
+          range: "GroupSettings!A:H",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -127,7 +127,7 @@ export const setFeeRate = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -152,7 +152,7 @@ export const setFeeRate = createTool({
       } else {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "群组设置!A:H",
+          range: "GroupSettings!A:H",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -223,7 +223,7 @@ export const getGroupSettings = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -310,7 +310,7 @@ export const convertTHBtoUSD = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -379,7 +379,7 @@ export const setRealtimeRateMode = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -404,7 +404,7 @@ export const setRealtimeRateMode = createTool({
       } else {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: "群组设置!A:H",
+          range: "GroupSettings!A:H",
           valueInputOption: "USER_ENTERED",
           requestBody: {
             values: [[
@@ -469,7 +469,7 @@ export const setCutoffTime = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
@@ -497,7 +497,7 @@ export const setCutoffTime = createTool({
       // 如果群组不存在,创建新记录
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [[
@@ -560,7 +560,7 @@ export const showCurrentRates = createTool({
       
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "群组设置!A:H",
+        range: "GroupSettings!A:H",
       });
       
       const rows = response.data.values || [];
