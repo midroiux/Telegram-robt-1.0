@@ -17,9 +17,33 @@ import { checkUserPermission } from "../tools/groupAccountingTools";
  */
 
 /**
- * 辅助函数：检查用户是否是Telegram群组管理员
+ * 管理员状态缓存
+ * 格式：{chatId}_{userId} -> {isAdmin: boolean, timestamp: number}
+ * 缓存时间：5分钟
+ */
+const adminCache = new Map<string, { isAdmin: boolean; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5分钟（毫秒）
+
+/**
+ * 辅助函数：检查用户是否是Telegram群组管理员（带缓存）
  */
 async function isGroupAdmin(chatId: number, userId: string, logger: any): Promise<boolean> {
+  const cacheKey = `${chatId}_${userId}`;
+  const now = Date.now();
+  
+  // 🚀 优先使用缓存
+  const cached = adminCache.get(cacheKey);
+  if (cached && (now - cached.timestamp < CACHE_DURATION)) {
+    logger?.info("⚡ [IsGroupAdmin] 使用缓存结果", {
+      userId,
+      chatId,
+      isAdmin: cached.isAdmin,
+      cacheAge: Math.round((now - cached.timestamp) / 1000) + "秒",
+    });
+    return cached.isAdmin;
+  }
+  
+  // 缓存过期或不存在，调用API
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   
   if (!botToken) {
@@ -51,7 +75,10 @@ async function isGroupAdmin(chatId: number, userId: string, logger: any): Promis
     const status = data.result?.status;
     const isAdmin = status === "creator" || status === "administrator";
     
-    logger?.info("✅ [IsGroupAdmin] 管理员检查完成", {
+    // 💾 存入缓存
+    adminCache.set(cacheKey, { isAdmin, timestamp: now });
+    
+    logger?.info("✅ [IsGroupAdmin] API检查完成并缓存", {
       userId,
       chatId,
       status,
