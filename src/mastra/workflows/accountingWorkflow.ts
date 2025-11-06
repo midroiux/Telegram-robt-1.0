@@ -25,15 +25,6 @@ const adminCache = new Map<string, { isAdmin: boolean; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5分钟（毫秒）
 
 /**
- * 权限提示缓存
- * 格式：{chatId}_{userId} -> timestamp
- * 用途：记录已经提示过无权限的用户，避免重复提示
- * 缓存时间：24小时
- */
-const noPermissionNotifiedCache = new Map<string, number>();
-const NO_PERMISSION_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24小时（毫秒）
-
-/**
  * 辅助函数：检查用户是否是Telegram群组管理员（带缓存）
  */
 async function isGroupAdmin(chatId: number, userId: string, logger: any): Promise<boolean> {
@@ -331,39 +322,15 @@ const processAccountingMessage = createStep({
         });
         
         if (!permissionResult.hasPermission) {
-          logger?.info("❌ [Permission] 无权限", {
+          logger?.info("❌ [Permission] 无权限，静默忽略", {
             userId: inputData.userId,
+            userName: inputData.userName,
             reason: permissionResult.reason,
           });
           
-          // 🔕 检查是否已经提示过该用户（24小时内只提示一次）
-          const notificationKey = `${inputData.chatId}_${inputData.userId}`;
-          const now = Date.now();
-          const lastNotified = noPermissionNotifiedCache.get(notificationKey);
-          
-          if (lastNotified && (now - lastNotified < NO_PERMISSION_CACHE_DURATION)) {
-            // 24小时内已提示过，静默忽略
-            logger?.info("🔕 [Permission] 用户已被提示过，静默忽略", {
-              userId: inputData.userId,
-              lastNotifiedAgo: Math.round((now - lastNotified) / 1000 / 60) + "分钟前",
-            });
-            
-            return {
-              response: "", // 空响应，不发送消息
-              success: false,
-              userName: inputData.userName,
-              chatId: inputData.chatId,
-            };
-          }
-          
-          // 首次提示，记录到缓存
-          noPermissionNotifiedCache.set(notificationKey, now);
-          logger?.info("📢 [Permission] 首次提示用户无权限", {
-            userId: inputData.userId,
-          });
-          
+          // 🔕 无权限用户：静默忽略，不发送任何提示
           return {
-            response: `❌ 您没有权限使用此机器人\n原因: ${permissionResult.reason}\n\n💡 发送 "我的ID" 查看您的用户ID，然后联系管理员添加权限`,
+            response: "", // 空响应，不发送消息
             success: false,
             userName: inputData.userName,
             chatId: inputData.chatId,
