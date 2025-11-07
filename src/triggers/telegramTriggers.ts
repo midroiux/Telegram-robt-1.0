@@ -10,6 +10,41 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
   );
 }
 
+/**
+ * 重复消息检测缓存
+ * 存储已处理的update_id，防止重复处理
+ * TTL: 1小时（足够防止重试，又不会占用太多内存）
+ */
+const processedUpdates = new Map<number, number>();
+const UPDATE_CACHE_TTL = 60 * 60 * 1000; // 1小时
+
+/**
+ * 检查是否是重复的Telegram update
+ */
+function checkDuplicateUpdate(updateId: number, logger?: any): boolean {
+  const now = Date.now();
+  
+  // 清理过期的缓存（每次检查时顺便清理）
+  for (const [id, timestamp] of processedUpdates.entries()) {
+    if (now - timestamp > UPDATE_CACHE_TTL) {
+      processedUpdates.delete(id);
+    }
+  }
+  
+  // 检查是否已处理
+  if (processedUpdates.has(updateId)) {
+    logger?.warn("⚠️ [Telegram] 检测到重复update，忽略", {
+      updateId,
+      firstProcessedAgo: Math.round((now - processedUpdates.get(updateId)!) / 1000) + "秒前",
+    });
+    return true; // 是重复的
+  }
+  
+  // 记录为已处理
+  processedUpdates.set(updateId, now);
+  return false; // 不是重复的
+}
+
 export type TriggerInfoTelegramOnNewMessage = {
   type: "telegram/message";
   params: {
@@ -52,6 +87,11 @@ export function registerTelegramTrigger({
           logger?.info("📦 [Telegram] 收到完整payload", {
             payload: JSON.stringify(payload, null, 2),
           });
+
+          // 🔒 检查是否是重复的update（防止重复处理）
+          if (payload.update_id && checkDuplicateUpdate(payload.update_id, logger)) {
+            return c.text("OK", 200); // 重复消息，直接返回OK
+          }
 
           // 处理普通消息
           if (payload.message) {
