@@ -135,6 +135,79 @@ const processAccountingMessage = createStep({
       const msg = inputData.message.trim();
       const groupId = inputData.chatId.toString(); // 动态获取群组ID，支持多群组
       
+      // 匹配 /restart 命令 (自检命令，无需权限)
+      if (msg === "/restart" || msg === "/health" || msg === "/status") {
+        logger?.info("🔧 [FastMatch] 匹配到自检命令");
+        
+        const startTime = Date.now();
+        const checks: string[] = [];
+        let allGood = true;
+        
+        // 检查1: 机器人基本运行状态
+        checks.push("✅ 机器人运行正常");
+        
+        // 检查2: 环境变量
+        const hasGoogleSheets = !!process.env.GOOGLE_SHEETS_ID;
+        const hasTelegramToken = !!process.env.TELEGRAM_BOT_TOKEN;
+        
+        if (hasGoogleSheets && hasTelegramToken) {
+          checks.push("✅ 环境配置正常");
+        } else {
+          allGood = false;
+          if (!hasGoogleSheets) checks.push("❌ Google Sheets 未配置");
+          if (!hasTelegramToken) checks.push("❌ Telegram Token 未配置");
+        }
+        
+        // 检查3: Google Sheets 连接
+        try {
+          const { getUncachableGoogleSheetClient } = await import("../../integrations/googleSheets");
+          const sheets = await getUncachableGoogleSheetClient();
+          const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+            range: "GroupSettings!A1:A1",
+          });
+          checks.push("✅ Google Sheets 连接正常");
+        } catch (error: any) {
+          allGood = false;
+          checks.push(`❌ Google Sheets 连接失败: ${error.message?.substring(0, 50) || "未知错误"}`);
+        }
+        
+        // 检查4: 群组设置
+        try {
+          const { getUncachableGoogleSheetClient } = await import("../../integrations/googleSheets");
+          const sheets = await getUncachableGoogleSheetClient();
+          const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+            range: "GroupSettings!A:A",
+          });
+          const rows = response.data.values || [];
+          const groupCount = Math.max(0, rows.length - 1);
+          checks.push(`✅ 已配置 ${groupCount} 个群组`);
+        } catch (error: any) {
+          checks.push("⚠️ 无法获取群组数量");
+        }
+        
+        const elapsed = Date.now() - startTime;
+        
+        const statusEmoji = allGood ? "🟢" : "🔴";
+        const statusText = allGood ? "所有系统正常运行" : "存在问题需要处理";
+        
+        const response = `${statusEmoji} *机器人自检报告*\n\n` +
+          checks.join("\n") +
+          `\n\n⏱️ 检查耗时: ${elapsed}ms\n` +
+          `📊 状态: ${statusText}\n` +
+          `🕐 检查时间: ${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`;
+        
+        logger?.info("✅ [FastMatch] 自检完成", { allGood, elapsed });
+        
+        return {
+          response,
+          success: true,
+          userName: inputData.userName,
+          chatId: inputData.chatId,
+        };
+      }
+      
       // 匹配 我的ID (无需权限，让新用户也能查询)
       if (msg === "我的ID" || msg === "我的id" || msg === "/myid") {
         logger?.info("✅ [FastMatch] 匹配到查询ID命令");
