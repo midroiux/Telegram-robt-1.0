@@ -222,3 +222,49 @@ if (Object.keys(mastra.getAgents()).length > 1) {
     "More than 1 agents found. Currently, more than 1 agents are not supported in the UI, since doing so will cause app state to be inconsistent.",
   );
 }
+
+/**
+ * 自动设置 Telegram Webhook
+ * 在生产环境中，应用启动后自动设置正确的 Webhook URL
+ * 这样可以防止 Inngest 覆盖我们的 Webhook 设置
+ */
+async function setupTelegramWebhook() {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const replitDomains = process.env.REPLIT_DOMAINS;
+  
+  if (!botToken) {
+    console.warn("[Webhook] TELEGRAM_BOT_TOKEN 未设置，跳过 Webhook 配置");
+    return;
+  }
+  
+  if (process.env.NODE_ENV !== "production" || !replitDomains) {
+    console.log("[Webhook] 非生产环境或无域名，跳过自动 Webhook 配置");
+    return;
+  }
+  
+  const domain = replitDomains.split(",")[0];
+  const webhookUrl = `https://${domain}/api/telegram/webhook`;
+  
+  try {
+    // 延迟 5 秒等待 Inngest 完成初始化
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/setWebhook?url=${encodeURIComponent(webhookUrl)}`,
+      { method: "GET" }
+    );
+    
+    const result = await response.json();
+    
+    if (result.ok) {
+      console.log(`✅ [Webhook] Telegram Webhook 已自动设置: ${webhookUrl}`);
+    } else {
+      console.error(`❌ [Webhook] 设置失败:`, result.description);
+    }
+  } catch (error) {
+    console.error(`❌ [Webhook] 设置出错:`, error);
+  }
+}
+
+// 启动时自动设置 Webhook
+setupTelegramWebhook();
