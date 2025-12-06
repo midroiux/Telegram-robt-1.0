@@ -7,6 +7,7 @@ integrations = [
   "google-sheet:1.0.0",
   "agentstack-trigger-telegram:1.0.0",
 ]
+automationTriggerConnectorName = "legacy_telegram"
 
 [nix]
 channel = "stable-24_11"
