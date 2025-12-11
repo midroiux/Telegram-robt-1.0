@@ -224,46 +224,37 @@ if (Object.keys(mastra.getAgents()).length > 1) {
 }
 
 /**
- * 自动设置 Telegram Webhook
- * 在生产环境中，应用启动后自动设置正确的 Webhook URL
- * 这样可以防止 Inngest 覆盖我们的 Webhook 设置
+ * 硬编码版 Telegram Webhook 设置
+ * 无论任何环境都会强制设置到生产域名
  */
+const PRODUCTION_WEBHOOK_URL = "https://tom-accounting-bot-tomchiachi.replit.app/api/telegram/webhook";
+
 async function setupTelegramWebhook() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   
   if (!botToken) {
-    console.warn("[Webhook] TELEGRAM_BOT_TOKEN 未设置，跳过 Webhook 配置");
+    console.warn("[Webhook] TELEGRAM_BOT_TOKEN 未设置");
     return;
   }
-  
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[Webhook] 非生产环境，跳过自动 Webhook 配置");
-    return;
-  }
-  
-  // 使用固定的生产域名，不依赖 REPLIT_DOMAINS（可能是临时域名）
-  const webhookUrl = `https://tom-accounting-bot-tomchiachi.replit.app/api/telegram/webhook`;
   
   try {
-    // 延迟 5 秒等待 Inngest 完成初始化
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/setWebhook?url=${encodeURIComponent(webhookUrl)}`,
+      `https://api.telegram.org/bot${botToken}/setWebhook?url=${encodeURIComponent(PRODUCTION_WEBHOOK_URL)}`,
       { method: "GET" }
     );
     
-    const result = await response.json();
+    const result = await response.json() as { ok: boolean; description?: string };
     
     if (result.ok) {
-      console.log(`✅ [Webhook] Telegram Webhook 已自动设置: ${webhookUrl}`);
+      console.log(`✅ [Webhook] 已设置: ${PRODUCTION_WEBHOOK_URL}`);
     } else {
-      console.error(`❌ [Webhook] 设置失败:`, result.description);
+      console.error(`❌ [Webhook] 失败:`, result.description);
     }
   } catch (error) {
-    console.error(`❌ [Webhook] 设置出错:`, error);
+    console.error(`❌ [Webhook] 出错:`, error);
   }
 }
 
-// 启动时自动设置 Webhook
 setupTelegramWebhook();
