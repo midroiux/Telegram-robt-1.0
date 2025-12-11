@@ -230,20 +230,19 @@ if (Object.keys(mastra.getAgents()).length > 1) {
  */
 async function setupTelegramWebhook() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const replitDomains = process.env.REPLIT_DOMAINS;
   
   if (!botToken) {
     console.warn("[Webhook] TELEGRAM_BOT_TOKEN 未设置，跳过 Webhook 配置");
     return;
   }
   
-  if (process.env.NODE_ENV !== "production" || !replitDomains) {
-    console.log("[Webhook] 非生产环境或无域名，跳过自动 Webhook 配置");
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Webhook] 非生产环境，跳过自动 Webhook 配置");
     return;
   }
   
-  const domain = replitDomains.split(",")[0];
-  const webhookUrl = `https://${domain}/api/telegram/webhook`;
+  // 使用固定的生产域名，不依赖 REPLIT_DOMAINS（可能是临时域名）
+  const webhookUrl = `https://tom-accounting-bot-tomchiachi.replit.app/api/telegram/webhook`;
   
   try {
     // 延迟 5 秒等待 Inngest 完成初始化
