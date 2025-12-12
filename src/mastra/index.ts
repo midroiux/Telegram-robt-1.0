@@ -224,10 +224,10 @@ if (Object.keys(mastra.getAgents()).length > 1) {
 }
 
 /**
- * 硬编码版 Telegram Webhook 设置
- * 无论任何环境都会强制设置到生产域名
+ * Telegram Webhook 设置
+ * 支持通过环境变量 WEBHOOK_URL 配置，方便部署到不同平台
  */
-const PRODUCTION_WEBHOOK_URL = "https://tom-accounting-bot-tomchiachi.replit.app/api/telegram/webhook";
+const PRODUCTION_WEBHOOK_URL = process.env.WEBHOOK_URL || "https://tom-accounting-bot-tomchiachi.replit.app/api/telegram/webhook";
 
 async function setupTelegramWebhook() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;

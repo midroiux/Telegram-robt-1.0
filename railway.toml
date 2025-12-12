@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npm run build"
+
+[deploy]
+startCommand = "node .mastra/output/index.mjs"
+healthcheckPath = "/api"
+healthcheckTimeout = 300
+restartPolicyType = "always"
