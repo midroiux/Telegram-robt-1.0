@@ -15,6 +15,9 @@
   "author": "",
   "license": "ISC",
   "description": "",
+  "overrides": {
+    "rollup": "4.44.2"
+  },
   "engines": {
     "node": ">=20.9.0"
   },
