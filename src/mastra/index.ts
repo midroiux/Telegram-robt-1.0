@@ -147,7 +147,7 @@ export const mastra = new Mastra({
   },
   server: {
     host: "0.0.0.0",
-    port: 5000,
+    port: parseInt(process.env.PORT || "5000", 10), // 修改了这里
     middleware: [
       async (c, next) => {
         const mastra = c.get("mastra");
@@ -227,7 +227,7 @@ if (Object.keys(mastra.getAgents()).length > 1) {
  * Telegram Webhook 设置
  * 支持通过环境变量 WEBHOOK_URL 配置，方便部署到不同平台
  */
-const PRODUCTION_WEBHOOK_URL = process.env.WEBHOOK_URL || "https://tom-accounting-bot-tomchiachi.replit.app/api/telegram/webhook";
+const PRODUCTION_WEBHOOK_URL = process.env.WEBHOOK_URL || "web-production-a9a2.up.railway.app"; // 修改了这里
 
 async function setupTelegramWebhook() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -241,7 +241,7 @@ async function setupTelegramWebhook() {
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/setWebhook?url=${encodeURIComponent(PRODUCTION_WEBHOOK_URL)}`,
+      `api.telegram.org{botToken}/setWebhook?url=${encodeURIComponent(PRODUCTION_WEBHOOK_URL)}`,
       { method: "GET" }
     );
     
